@@ -154,6 +154,22 @@ const Profile: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <div className="w-full max-w-4xl mt-8 mb-4 text-center">
+        <div className="border-t border-gray-200 pt-6 pb-2">
+          <p className="text-sm font-semibold text-[#246d8c] mb-1">
+            Designed and Developed by Team Eventique
+          </p>
+          <p className="text-xs text-gray-400 mb-4">All rights reserved © 2023</p>
+          <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-x-6 gap-y-1 text-xs text-gray-500">
+            <span>Navaneeth K B — <a href="mailto:navaneethkb04@gmail.com" className="text-[#246d8c] hover:underline">navaneethkb04@gmail.com</a></span>
+            <span>Vijai Kiren — <a href="mailto:vijaikiren@gmail.com" className="text-[#246d8c] hover:underline">vijaikiren@gmail.com</a></span>
+            <span>Neha George — <a href="mailto:nehageorge009@gmail.com" className="text-[#246d8c] hover:underline">nehageorge009@gmail.com</a></span>
+            <span>Sarath Menon — <a href="mailto:sarathmenon2003@gmail.com" className="text-[#246d8c] hover:underline">sarathmenon2003@gmail.com</a></span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
