@@ -9,6 +9,7 @@ import Login from './Pages/Login';
 import Splash from './Pages/Splash';
 import Signup from './Pages/Signup';
 import AdditionalInfo from './Pages/AdditionalInfo';
+import StudentLayout from './Pages/StudentLayout';
 import HomePage from './Pages/HomePage';
 import EventDetails from './Pages/EventDetails';
 import OrganiserHomePage from './Pages/OrganiserHomePage';
@@ -89,10 +90,18 @@ function App() {
         <Route path="/signup" element={<AuthRedirect user={user}><Signup /></AuthRedirect>} />
         <Route path="/additionalinfo" element={user ? <AdditionalInfo /> : <Navigate to="/login" />} />
 
-        {/* Protected Routes */}
-        <Route path="/HomePage" element={user ? <HomePage /> : <Navigate to="/login" />} />
-        <Route path="/HomePage/TicketView" element={user ? <Ticket /> : <Navigate to="/login" />} />
-        <Route path="/EventDetails" element={user ? <EventDetails /> : <Navigate to="/login" />} />
+        {/* Student Routes — wrapped in StudentLayout for persistent nav bar */}
+        <Route element={user ? <StudentLayout /> : <Navigate to="/login" />}>
+          <Route path="/HomePage" element={<HomePage />} />
+          <Route path="/HomePage/TicketView" element={<Ticket />} />
+          <Route path="/EventDetails" element={<EventDetails />} />
+          <Route path="/event/:id" element={<EventDetails />} />
+          <Route path="/HomePage/Profile" element={<Profile />} />
+          <Route path="/HomePage/Profile/EditProfile" element={<EditProfile />} />
+          <Route path="/HomePage/Months" element={<Months />} />
+        </Route>
+
+        {/* Organiser Routes — no student nav bar */}
         <Route path="/OrganiserHomePage" element={user ? <OrganiserHomePage /> : <Navigate to="/login" />} />
         <Route path="/OrganiserHomePage/EventCreation" element={user ? <EventCreation /> : <Navigate to="/login" />} />
         <Route path="/OrganiserHomePage/EventCreateSuccess" element={user ? <EventCreateSuccess /> : <Navigate to="/login" />} />
@@ -102,11 +111,7 @@ function App() {
         <Route path="/OrganiserExtraDetails/:id" element={user ? <OrganiserExtraDetails /> : <Navigate to="/login" />} />
         <Route path="/OrganiserFeedbackDetails/:id" element={user ? <OrganiserFeedbackDetails /> : <Navigate to="/login" />} />
         <Route path="/OrganiserProfile" element={user ? <OrganiserProfile /> : <Navigate to="/login" />} />
-        <Route path="/HomePage/Profile" element={user ? <Profile /> : <Navigate to="/login" />} />
-        <Route path="/HomePage/Profile/EditProfile" element={user ? <EditProfile /> : <Navigate to="/login" />} />
-        <Route path="/event/:id" element={user ? <EventDetails /> : <Navigate to="/login" />} />
         <Route path="/OrganiserHomePage/:id" element={user ? <OrganiserEventDetail /> : <Navigate to="/login" />} />
-        <Route path="/HomePage/Months" element={user ? <Months /> : <Navigate to="/login" />} />
         <Route path="/OrganiserCalendar" element={user ? <OrganiserCalendar /> : <Navigate to="/login" />} />
       </Routes>
     </Router>
