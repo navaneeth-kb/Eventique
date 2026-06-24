@@ -94,8 +94,8 @@ const Profile: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#e9f7f1] flex items-start md:items-center justify-center p-4 lg:pl-16 xl:pl-64">
-      <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg md:shadow-2xl overflow-hidden lg:ml-4 xl:ml-8">
+    <div className="min-h-screen bg-[#e9f7f1] flex flex-col items-center justify-start p-4 pb-20 lg:pl-16 xl:pl-64">
+      <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg md:shadow-2xl overflow-hidden lg:ml-4 xl:ml-8 mt-4">
         {/* Profile Header */}
         <div className="bg-[#246d8c] p-4 md:p-6 text-white text-center">
           <h1 className="text-xl sm:text-2xl font-bold">{userProfile.name}</h1>
