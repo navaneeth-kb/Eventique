@@ -197,256 +197,336 @@ const CreateEvent: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#f6fcf7] flex flex-col items-center px-4 py-8">
-      <div className="w-full max-w-md">
-        <div className="flex items-center justify-between mb-8">
-          <div className="text-xl font-medium text-black">Create Event</div>
-          <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
+    <div className="min-h-screen bg-[#e9f7f1] flex flex-col items-center p-4 pt-6 pb-20">
+      {/* Page Title */}
+      <h2 className="text-2xl font-bold text-[#246d8c] mb-5 tracking-wide text-center">
+        Create Event
+      </h2>
+
+      <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg overflow-hidden">
+        {/* Form Header */}
+        <div className="bg-[#246d8c] p-6 text-white">
+          <h3 className="text-xl font-bold">Event Details</h3>
+          <p className="text-blue-100 text-sm mt-1">Fill in the details to publish a new event</p>
         </div>
 
-        <div className="mb-8">
-          <div className="text-lg font-medium text-black mb-2">Event Media</div>
-          
-          <div className="w-full h-36 mb-4 bg-[#d9d9d9] rounded-md overflow-hidden relative">
-            {posterPreview ? (
-              <div className="relative w-full h-full">
-                <img 
-                  src={posterPreview} 
-                  alt="Event poster preview" 
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
-                  <label 
-                    htmlFor="event-poster" 
-                    className="bg-white text-black px-3 py-1 rounded-md text-sm cursor-pointer hover:bg-gray-100"
-                  >
-                    Change Poster
-                  </label>
-                </div>
-              </div>
-            ) : (
-              <label
-                htmlFor="event-poster"
-                className="flex flex-col items-center justify-center cursor-pointer w-full h-full"
-              >
-                <div className="text-2xl text-black">+</div>
-                <div className="text-base text-black">Add event poster</div>
-              </label>
-            )}
-            <input
-              id="event-poster"
-              type="file"
-              accept="image/*"
-              onChange={handlePosterChange}
-              className="hidden"
-              title="Upload event poster"
-              aria-label="Upload event poster"
-            />
-          </div>
-          
-          <div className="w-full mb-4">
-            <div className="text-base text-black mb-2">Organization Logos (Add up to 3)</div>
+        <div className="p-6">
+          <div className="mb-8">
+            <h4 className="text-lg font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200">Event Media</h4>
             
-            {logoPreviews.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {logoPreviews.map((preview, index) => (
-                  <div key={index} className="relative w-20 h-20 bg-white rounded-md overflow-hidden border border-gray-200">
-                    <img src={preview} alt={`Logo ${index + 1}`} className="w-full h-full object-contain p-1" />
-                    <button
-                      type="button"
-                      onClick={() => removeLogoAt(index)}
-                      className="absolute top-0 right-0 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs"
+            <div className="w-full h-48 mb-4 bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl overflow-hidden relative transition-colors hover:border-[#246d8c]">
+              {posterPreview ? (
+                <div className="relative w-full h-full group">
+                  <img 
+                    src={posterPreview} 
+                    alt="Event poster preview" 
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <label 
+                      htmlFor="event-poster" 
+                      className="bg-white text-[#246d8c] px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-gray-100 shadow-md transition-transform transform hover:scale-105"
                     >
-                      ×
-                    </button>
+                      Change Poster
+                    </label>
                   </div>
-                ))}
-              </div>
-            )}
-            
-            {logoFiles.length < 3 && (
-              <div className="w-full h-20 bg-[#d9d9d9] rounded-md overflow-hidden relative">
+                </div>
+              ) : (
                 <label
-                  htmlFor="event-logo"
-                  className="flex flex-col items-center justify-center cursor-pointer w-full h-full"
+                  htmlFor="event-poster"
+                  className="flex flex-col items-center justify-center cursor-pointer w-full h-full text-gray-400 hover:text-[#246d8c]"
                 >
-                  <div className="text-2xl text-black">+</div>
-                  <div className="text-base text-black">Add organization logo</div>
+                  <div className="text-4xl mb-2">+</div>
+                  <div className="text-sm font-medium">Click to add event poster</div>
+                  <div className="text-xs mt-1 opacity-70">Recommended size: 1080x1080</div>
                 </label>
-                <input
-                  id="event-logo"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleLogoChange}
-                  className="hidden"
-                  title="Upload organization logo"
-                  aria-label="Upload organization logo"
-                />
-              </div>
-            )}
-            <div className="text-xs text-gray-500 mt-1">These logos will appear on certificates</div>
-          </div>
-        </div>
-
-        <div className="text-xl font-medium text-black mb-2">Event Details</div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            name="category"
-            placeholder="Category"
-            value={eventData.category}
-            onChange={handleInputChange}
-            className="w-full h-12 px-4 bg-white border border-gray-200 rounded-md placeholder-gray-500"
-          />
-          <input
-            type="text"
-            name="name"
-            placeholder="Event Name"
-            value={eventData.name}
-            onChange={handleInputChange}
-            className="w-full h-12 px-4 bg-white border border-gray-200 rounded-md placeholder-gray-500"
-          />
-          <input
-            type="text"
-            name="organiser"
-            placeholder="Organizer"
-            value={loading ? "Loading..." : organizerName}
-            className="w-full h-12 px-4 bg-white border border-gray-200 rounded-md placeholder-gray-500"
-            disabled
-          />
-          <input
-            type="text"
-            name="venue"
-            placeholder="Venue"
-            value={eventData.venue}
-            onChange={handleInputChange}
-            className="w-full h-12 px-4 bg-white border border-gray-200 rounded-md placeholder-gray-500"
-          />
-          <textarea
-            name="description"
-            placeholder="Description"
-            value={eventData.description}
-            onChange={handleInputChange}
-            className="w-full h-24 px-4 py-2 bg-white border border-gray-200 rounded-md placeholder-gray-500"
-          />
-          <input
-            type="date"
-            name="event_date"
-            placeholder="Event Date"
-            value={eventData.event_date}
-            onChange={handleInputChange}
-            className="w-full h-12 px-4 bg-white border border-gray-200 rounded-md placeholder-gray-500"
-          />
-          <input
-            type="time"
-            name="event_time"
-            placeholder="Event Time"
-            value={eventData.event_time}
-            onChange={handleInputChange}
-            className="w-full h-12 px-4 bg-white border border-gray-200 rounded-md placeholder-gray-500"
-          />
-          <input
-            type="text"
-            name="duration"
-            placeholder="Duration"
-            value={eventData.duration}
-            onChange={handleInputChange}
-            className="w-full h-12 px-4 bg-white border border-gray-200 rounded-md placeholder-gray-500"
-          />
-          <input
-            type="number"
-            name="num_of_participants"
-            placeholder="Number of Participants"
-            value={eventData.num_of_participants}
-            onChange={handleInputChange}
-            className="w-full h-12 px-4 bg-white border border-gray-200 rounded-md placeholder-gray-500"
-          />
-
-          <div>
-            <div className="text-lg font-medium text-black">Coordinator 1</div>
-            <input
-              type="text"
-              name="name"
-              placeholder="Coordinator 1 Name"
-              value={eventData.coordinator1.name}
-              onChange={(e) => handleCoordinatorChange(e, 0)}
-              className="w-full h-12 px-4 bg-white border border-gray-200 rounded-md placeholder-gray-500"
-            />
-            <input
-              type="tel"
-              name="phone"
-              placeholder="Coordinator 1 Phone"
-              value={eventData.coordinator1.phone}
-              onChange={(e) => handleCoordinatorChange(e, 0)}
-              className="w-full h-12 px-4 bg-white border border-gray-200 rounded-md placeholder-gray-500"
-            />
-          </div>
-
-          <div>
-            <div className="text-lg font-medium text-black">Coordinator 2</div>
-            <input
-              type="text"
-              name="name"
-              placeholder="Coordinator 2 Name"
-              value={eventData.coordinator2.name}
-              onChange={(e) => handleCoordinatorChange(e, 1)}
-              className="w-full h-12 px-4 bg-white border border-gray-200 rounded-md placeholder-gray-500"
-            />
-            <input
-              type="tel"
-              name="phone"
-              placeholder="Coordinator 2 Phone"
-              value={eventData.coordinator2.phone}
-              onChange={(e) => handleCoordinatorChange(e, 1)}
-              className="w-full h-12 px-4 bg-white border border-gray-200 rounded-md placeholder-gray-500"
-            />
-          </div>
-
-          {/* Payment Toggle Section */}
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-lg font-medium text-black">Enable Payment</div>
-            <button
-              type="button"
-              onClick={togglePaymentOption}
-              className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                enablePayment ? 'bg-[#246D8C]' : 'bg-gray-200'
-              }`}
-            >
-              <span
-                className={`${
-                  enablePayment ? 'translate-x-6' : 'translate-x-1'
-                } inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}
-              />
-            </button>
-          </div>
-
-          {enablePayment && (
-            <div className="mb-4">
-              <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
-                Event Price (₹)
-              </label>
+              )}
               <input
-                type="number"
-                id="price"
-                name="price"
-                min="0"
-                step="0.01"
-                placeholder="Enter event price"
-                value={eventData.price}
-                onChange={handlePriceChange}
-                className="w-full h-12 px-4 bg-white border border-gray-200 rounded-md placeholder-gray-500"
+                id="event-poster"
+                type="file"
+                accept="image/*"
+                onChange={handlePosterChange}
+                className="hidden"
               />
             </div>
-          )}
+            
+            <div className="w-full mb-4">
+              <div className="text-sm font-medium text-gray-700 mb-2">Organization Logos (Optional, up to 3)</div>
+              
+              {logoPreviews.length > 0 && (
+                <div className="flex flex-wrap gap-3 mb-3">
+                  {logoPreviews.map((preview, index) => (
+                    <div key={index} className="relative w-24 h-24 bg-white rounded-lg shadow-sm border border-gray-200 p-2 group">
+                      <img src={preview} alt={`Logo ${index + 1}`} className="w-full h-full object-contain" />
+                      <button
+                        type="button"
+                        onClick={() => removeLogoAt(index)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {logoFiles.length < 3 && (
+                <div className="w-full h-16 bg-gray-50 border border-dashed border-gray-300 rounded-lg overflow-hidden relative hover:border-[#246d8c] transition-colors">
+                  <label
+                    htmlFor="event-logo"
+                    className="flex items-center justify-center cursor-pointer w-full h-full text-gray-500 hover:text-[#246d8c]"
+                  >
+                    <span className="text-xl mr-2">+</span>
+                    <span className="text-sm font-medium">Add logo for certificates</span>
+                  </label>
+                  <input
+                    id="event-logo"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoChange}
+                    className="hidden"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-          >
-            {loading ? "Submitting..." : "Create Event"}
-          </button>
-        </form>
+          <h4 className="text-lg font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200">Basic Information</h4>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Event Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  placeholder="e.g. Tech Symposium 2024"
+                  value={eventData.name}
+                  onChange={handleInputChange}
+                  className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <input
+                  type="text"
+                  name="category"
+                  placeholder="e.g. Workshop, Seminar"
+                  value={eventData.category}
+                  onChange={handleInputChange}
+                  className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Organizer Name</label>
+              <input
+                type="text"
+                name="organiser"
+                value={loading ? "Loading..." : organizerName}
+                className="w-full h-12 px-4 bg-gray-100 border border-gray-300 rounded-lg text-gray-500 cursor-not-allowed"
+                disabled
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Venue</label>
+              <input
+                type="text"
+                name="venue"
+                placeholder="e.g. Main Auditorium"
+                value={eventData.venue}
+                onChange={handleInputChange}
+                className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                name="description"
+                placeholder="Provide a detailed description of the event..."
+                value={eventData.description}
+                onChange={handleInputChange}
+                className="w-full h-32 px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all resize-none"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Event Date</label>
+                <input
+                  type="date"
+                  name="event_date"
+                  value={eventData.event_date}
+                  onChange={handleInputChange}
+                  className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Event Time</label>
+                <input
+                  type="time"
+                  name="event_time"
+                  value={eventData.event_time}
+                  onChange={handleInputChange}
+                  className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
+                <input
+                  type="text"
+                  name="duration"
+                  placeholder="e.g. 2 Hours, 1 Day"
+                  value={eventData.duration}
+                  onChange={handleInputChange}
+                  className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Max Participants</label>
+                <input
+                  type="number"
+                  name="num_of_participants"
+                  placeholder="Leave empty for unlimited"
+                  value={eventData.num_of_participants}
+                  onChange={handleInputChange}
+                  className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <h4 className="text-lg font-semibold text-gray-700 mt-8 mb-4 pb-2 border-b border-gray-200">Coordinators</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-4 rounded-xl border border-gray-200">
+              <div>
+                <div className="text-md font-medium text-[#246d8c] mb-3">Coordinator 1</div>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Full Name"
+                    value={eventData.coordinator1.name}
+                    onChange={(e) => handleCoordinatorChange(e, 0)}
+                    className="w-full h-10 px-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] outline-none text-sm"
+                    required
+                  />
+                  <input
+                    type="tel"
+                    name="phone"
+                    placeholder="Phone Number"
+                    value={eventData.coordinator1.phone}
+                    onChange={(e) => handleCoordinatorChange(e, 0)}
+                    className="w-full h-10 px-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] outline-none text-sm"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="text-md font-medium text-[#246d8c] mb-3">Coordinator 2 (Optional)</div>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Full Name"
+                    value={eventData.coordinator2.name}
+                    onChange={(e) => handleCoordinatorChange(e, 1)}
+                    className="w-full h-10 px-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] outline-none text-sm"
+                  />
+                  <input
+                    type="tel"
+                    name="phone"
+                    placeholder="Phone Number"
+                    value={eventData.coordinator2.phone}
+                    onChange={(e) => handleCoordinatorChange(e, 1)}
+                    className="w-full h-10 px-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] outline-none text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <h4 className="text-lg font-semibold text-gray-700 mt-8 mb-4 pb-2 border-b border-gray-200">Registration & Payment</h4>
+
+            <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-md font-medium text-gray-800">Paid Event</div>
+                  <div className="text-sm text-gray-500 mt-1">Require participants to pay a fee to register</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={togglePaymentOption}
+                  className={`relative inline-flex items-center h-7 rounded-full w-12 transition-colors focus:outline-none ${
+                    enablePayment ? 'bg-[#246D8C]' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`${
+                      enablePayment ? 'translate-x-6' : 'translate-x-1'
+                    } inline-block w-5 h-5 transform bg-white rounded-full transition-transform shadow-sm`}
+                  />
+                </button>
+              </div>
+
+              {enablePayment && (
+                <div className="mt-5 pt-5 border-t border-gray-200">
+                  <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-2">
+                    Event Registration Fee (₹)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-500 font-medium">₹</span>
+                    <input
+                      type="number"
+                      id="price"
+                      name="price"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={eventData.price}
+                      onChange={handlePriceChange}
+                      className="w-full h-12 pl-8 pr-4 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all font-medium"
+                      required={enablePayment}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-6 mt-6">
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full py-4 text-white font-bold rounded-xl shadow-lg transition-all ${
+                  loading 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-[#246d8c] hover:bg-[#1a4f63] hover:shadow-xl transform hover:-translate-y-1'
+                }`}
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </span>
+                ) : "Publish Event"}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

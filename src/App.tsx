@@ -10,6 +10,7 @@ import Splash from './Pages/Splash';
 import Signup from './Pages/Signup';
 import AdditionalInfo from './Pages/AdditionalInfo';
 import StudentLayout from './Pages/StudentLayout';
+import OrganiserLayout from './Pages/OrganiserLayout';
 import HomePage from './Pages/HomePage';
 import EventDetails from './Pages/EventDetails';
 import OrganiserHomePage from './Pages/OrganiserHomePage';
@@ -103,18 +104,20 @@ function App() {
           <Route path="/HomePage/Months" element={<Months />} />
         </Route>
 
-        {/* Organiser Routes — no student nav bar */}
-        <Route path="/OrganiserHomePage" element={user ? <OrganiserHomePage /> : <Navigate to="/login" />} />
-        <Route path="/OrganiserHomePage/EventCreation" element={user ? <EventCreation /> : <Navigate to="/login" />} />
-        <Route path="/OrganiserHomePage/EventCreateSuccess" element={user ? <EventCreateSuccess /> : <Navigate to="/login" />} />
-        <Route path="/OrganiserHomePage/OrganiserEventDetail" element={user ? <OrganiserEventDetail /> : <Navigate to="/login" />} />
-        <Route path="/OrganiserHomePage/EditEvent/:id" element={user ? <OrganiserEditEvent /> : <Navigate to="/login" />} />
-        <Route path="/OrganiserHomePage/OrganiserEventDetail/Scan/:id" element={user ? <Scan /> : <Navigate to="/login" />} />
-        <Route path="/OrganiserExtraDetails/:id" element={user ? <OrganiserExtraDetails /> : <Navigate to="/login" />} />
-        <Route path="/OrganiserFeedbackDetails/:id" element={user ? <OrganiserFeedbackDetails /> : <Navigate to="/login" />} />
-        <Route path="/OrganiserProfile" element={user ? <OrganiserProfile /> : <Navigate to="/login" />} />
-        <Route path="/OrganiserHomePage/:id" element={user ? <OrganiserEventDetail /> : <Navigate to="/login" />} />
-        <Route path="/OrganiserCalendar" element={user ? <OrganiserCalendar /> : <Navigate to="/login" />} />
+        {/* Organiser Routes — wrapped in OrganiserLayout for persistent nav bar */}
+        <Route element={user ? <OrganiserLayout /> : <Navigate to="/login" />}>
+          <Route path="/OrganiserHomePage" element={<OrganiserHomePage />} />
+          <Route path="/OrganiserHomePage/EventCreation" element={<EventCreation />} />
+          <Route path="/OrganiserHomePage/EventCreateSuccess" element={<EventCreateSuccess />} />
+          <Route path="/OrganiserHomePage/OrganiserEventDetail" element={<OrganiserEventDetail />} />
+          <Route path="/OrganiserHomePage/EditEvent/:id" element={<OrganiserEditEvent />} />
+          <Route path="/OrganiserHomePage/OrganiserEventDetail/Scan/:id" element={<Scan />} />
+          <Route path="/OrganiserExtraDetails/:id" element={<OrganiserExtraDetails />} />
+          <Route path="/OrganiserFeedbackDetails/:id" element={<OrganiserFeedbackDetails />} />
+          <Route path="/OrganiserProfile" element={<OrganiserProfile />} />
+          <Route path="/OrganiserHomePage/:id" element={<OrganiserEventDetail />} />
+          <Route path="/OrganiserCalendar" element={<OrganiserCalendar />} />
+        </Route>
       </Routes>
     </Router>
   );

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { HomeIcon, PlusIcon, CalendarIcon, UserIcon } from "@heroicons/react/24/outline";
 import hi from "../assets/Home/hi.svg";
 import { doc, getDoc, getDocs, collection } from "firebase/firestore";
 // @ts-ignore
@@ -14,7 +13,6 @@ const EventSection: React.FC = () => {
   const [activeEvents, setActiveEvents] = useState<any[]>([]);
   const [closedEvents, setClosedEvents] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [activeTab] = useState<string>('home');
   const [eventFilter, setEventFilter] = useState<'active' | 'closed'>('active');
 
   useEffect(() => {
@@ -72,7 +70,7 @@ const EventSection: React.FC = () => {
     .filter((event) => event.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <div className="w-full min-h-screen bg-[#F6FCF7] p-4 flex flex-col items-center pb-20">
+    <div className="w-full min-h-screen bg-[#F6FCF7] p-4 flex flex-col items-center">
       {/* Welcome Section */}
       <div className="relative mb-6 w-full max-w-3xl">
         <div className="w-full">
@@ -161,26 +159,6 @@ const EventSection: React.FC = () => {
             ))}
           </div>
         )}
-      </div>
-
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white flex justify-around items-center h-16 border-t border-gray-200 z-10">
-        <button onClick={() => navigate("/Home")} className="flex flex-col items-center w-1/4" aria-label="Home">
-          <HomeIcon className="h-5 w-5 sm:h-6 sm:w-6 text-black" />
-          <span className={`text-xs sm:text-sm ${activeTab === 'home' ? 'text-blue-500' : 'text-black'}`}>Home</span>
-        </button>
-        <button onClick={() => navigate("/OrganiserHomePage/EventCreation")} className="flex flex-col items-center w-1/4" aria-label="Add Event">
-          <PlusIcon className="h-5 w-5 sm:h-6 sm:w-6 text-black" />
-          <span className={`text-xs sm:text-sm ${activeTab === 'create' ? 'text-blue-500' : 'text-black'}`}>Create</span>
-        </button>
-        <button onClick={() => navigate("/OrganiserCalendar")} className="flex flex-col items-center w-1/4" aria-label="Events">
-          <CalendarIcon className="h-5 w-5 sm:h-6 sm:w-6 text-black" />
-          <span className={`text-xs sm:text-sm ${activeTab === 'events' ? 'text-blue-500' : 'text-black'}`}>Events</span>
-        </button>
-        <button onClick={() => navigate("/OrganiserProfile")} className="flex flex-col items-center w-1/4" aria-label="Profile">
-          <UserIcon className="h-5 w-5 sm:h-6 sm:w-6 text-black" />
-          <span className={`text-xs sm:text-sm ${activeTab === 'profile' ? 'text-blue-500' : 'text-black'}`}>Profile</span>
-        </button>
       </div>
     </div>
   );
