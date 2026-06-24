@@ -26,6 +26,7 @@ import Ticket from './Pages/Ticket';
 import Scan from './Pages/Scan';
 import Months from './Pages/Months';
 import OrganiserCalendar from './Pages/OrganiserCalendar';
+import OrganiserLogin from './Pages/OrganiserLogin';
 
 /**
  * Redirects authenticated users away from login/signup pages.
@@ -89,6 +90,7 @@ function App() {
         <Route path="/login" element={<AuthRedirect user={user}><Login /></AuthRedirect>} />
         <Route path="/signup" element={<AuthRedirect user={user}><Signup /></AuthRedirect>} />
         <Route path="/additionalinfo" element={user ? <AdditionalInfo /> : <Navigate to="/login" />} />
+        <Route path="/organiser-login" element={user ? <Navigate to="/OrganiserHomePage" /> : <OrganiserLogin />} />
 
         {/* Student Routes — wrapped in StudentLayout for persistent nav bar */}
         <Route element={user ? <StudentLayout /> : <Navigate to="/login" />}>

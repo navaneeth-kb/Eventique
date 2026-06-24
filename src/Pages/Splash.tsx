@@ -1,28 +1,25 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
+import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.svg';
 
 const Splash = () => {
-  const [showButtons, setShowButtons] = useState(false); // State to control buttons visibility
-  const navigate = useNavigate(); // Initialize the navigate function
+  const [showButtons, setShowButtons] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Show buttons after 3 seconds
     const timer = setTimeout(() => {
-      setShowButtons(true); // Show the buttons after the logo animation
-    }, 2000); // 2 seconds for the logo
+      setShowButtons(true);
+    }, 2000);
 
-    // Cleanup timer on component unmount
     return () => clearTimeout(timer);
   }, []);
 
-  // Handlers for login and sign up buttons
-  const handleLogin = () => {
-    navigate('/login'); // Navigate to login page
+  const handleStudentLogin = () => {
+    navigate('/login');
   };
 
-  const handleSignUp = () => {
-    navigate('/signup'); // Navigate to signup page
+  const handleOrganiserLogin = () => {
+    navigate('/organiser-login');
   };
 
   return (
@@ -35,26 +32,26 @@ const Splash = () => {
         style={{ animation: 'fadeIn 3s ease-in-out' }}
       />
       
-      {/* Content after the logo disappears */}
+      {/* Content after the logo appears */}
       {showButtons && (
         <>
           <div className="text-[#246d8c] text-[32px] font-medium font-['Inter'] mb-4">
-            Let’s get started
+            Let's get started
           </div>
           <div className="w-[316px] text-[#246d8c] text-base font-normal font-['Inter'] text-center mb-8">
             Organizers manage events and check in with QR codes. Users register and get tickets in one slide.
           </div>
           <button
-            onClick={handleLogin}
+            onClick={handleStudentLogin}
             className="w-[295px] py-[13px] bg-[#246d8c] text-white text-base font-medium font-['Inter'] rounded-md mb-4"
           >
-            Login
+            Student Login
           </button>
           <button
-            onClick={handleSignUp}
-            className="w-[295px] py-[13px] bg-[#246d8c] text-white text-base font-medium font-['Inter'] rounded-md"
+            onClick={handleOrganiserLogin}
+            className="w-[295px] py-[13px] bg-white text-[#246d8c] text-base font-medium font-['Inter'] rounded-md border-2 border-[#246d8c]"
           >
-            Sign up
+            Organiser Login
           </button>
         </>
       )}
