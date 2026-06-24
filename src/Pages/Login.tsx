@@ -46,14 +46,15 @@ const Login = () => {
       // After Google sign-in, check if the user exists in the 'users' collection
       const user = auth.currentUser;
       if (user) {
-        const docRef = doc(db, 'users', user?.email!); // Assuming email is used as user document ID
+        const docRef = doc(db, 'users', user.uid); // Use uid to match how AdditionalInfo stores data
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-          // User found, navigate to the home page
+          // User found with completed profile, navigate to the home page
           navigate('/HomePage');
         } else {
-          
+          // First-time user — collect additional info before proceeding
+          navigate('/additionalinfo');
         }
       } else {
         alert('Google sign-in failed.');

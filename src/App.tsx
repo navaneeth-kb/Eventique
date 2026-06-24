@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { doc, getDoc, getFirestore } from 'firebase/firestore';
 // @ts-ignore
 import { auth } from './firebaseConfig';
 
@@ -25,12 +26,55 @@ import Scan from './Pages/Scan';
 import Months from './Pages/Months';
 import OrganiserCalendar from './Pages/OrganiserCalendar';
 
+/**
+ * Redirects authenticated users away from login/signup pages.
+ * Checks Firestore to see if the user has completed their profile:
+ *  - If profile exists → redirect to HomePage
+ *  - If profile doesn't exist → redirect to AdditionalInfo
+ *  - While checking → show nothing (brief flash)
+ */
+function AuthRedirect({ user, children }: { user: User | null; children: React.ReactNode }) {
+  const [checking, setChecking] = useState(true);
+  const [redirectTo, setRedirectTo] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setChecking(false);
+      return;
+    }
+
+    const checkProfile = async () => {
+      try {
+        const db = getFirestore();
+        const docRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          setRedirectTo('/HomePage');
+        } else {
+          setRedirectTo('/additionalinfo');
+        }
+      } catch (error) {
+        console.error('Error checking profile:', error);
+        // On error, default to additional info to be safe
+        setRedirectTo('/additionalinfo');
+      }
+      setChecking(false);
+    };
+
+    checkProfile();
+  }, [user]);
+
+  if (checking && user) return null; // Brief loading while checking profile
+  if (redirectTo && user) return <Navigate to={redirectTo} />;
+  return <>{children}</>;
+}
+
 function App() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      // @ts-ignore
       setUser(currentUser);
     });
     return () => unsubscribe();
@@ -41,8 +85,8 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Splash />} />
-        <Route path="/login" element={user ? <Navigate to="/HomePage" /> : <Login />} />
-        <Route path="/signup" element={user ? <Navigate to="/HomePage" /> : <Signup />} />
+        <Route path="/login" element={<AuthRedirect user={user}><Login /></AuthRedirect>} />
+        <Route path="/signup" element={<AuthRedirect user={user}><Signup /></AuthRedirect>} />
         <Route path="/additionalinfo" element={user ? <AdditionalInfo /> : <Navigate to="/login" />} />
 
         {/* Protected Routes */}
