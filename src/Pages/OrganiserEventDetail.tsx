@@ -10,8 +10,9 @@ import {
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import { doc, getDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { ref, deleteObject } from 'firebase/storage';
 // @ts-ignore
-import { db } from '../firebaseConfig';
+import { db, storage } from '../firebaseConfig';
 import { jsPDF } from 'jspdf';
 
 interface EventData {
@@ -102,14 +103,36 @@ const OrganiserEventDetail = () => {
   const handleCloseEvent = async () => {
     if (!id || !eventData) return;
     
-    const confirmClose = window.confirm("Are you sure you want to close this event? This will:\n1. Move it to past events\n2. Close registration\n3. Remove it from current events");
+    const confirmClose = window.confirm("Are you sure you want to close this event? This will:\n1. Move it to past events\n2. Close registration\n3. Remove it from current events\n4. Delete all uploaded payment screenshots");
     if (!confirmClose) return;
 
     try {
       const eventRef = doc(db, 'event', id);
+      const eventSnap = await getDoc(eventRef);
+      
+      if (eventSnap.exists()) {
+        const data = eventSnap.data();
+        if (data.paymentProofs && Array.isArray(data.paymentProofs)) {
+          console.log(`Deleting ${data.paymentProofs.length} payment proofs...`);
+          const deletePromises = data.paymentProofs.map(async (proof: any) => {
+            if (proof.proofURL) {
+              try {
+                const proofRef = ref(storage, proof.proofURL);
+                await deleteObject(proofRef);
+              } catch (e) {
+                console.error("Failed to delete payment proof from storage:", e);
+              }
+            }
+          });
+          
+          await Promise.all(deletePromises);
+        }
+      }
+
       await updateDoc(eventRef, {
         status: 'closed',
-        registrationOpen: false
+        registrationOpen: false,
+        paymentProofs: [] // Clear the array in Firestore as well
       });
       
       setEventData({
@@ -118,7 +141,7 @@ const OrganiserEventDetail = () => {
         registrationOpen: false
       });
       
-      alert("Event closed successfully! Registration is now closed.");
+      alert("Event closed successfully! Registration is closed and payment proofs have been deleted.");
     } catch (error) {
       console.error('Error closing event:', error);
       alert("Failed to close event.");
