@@ -10,11 +10,12 @@ import {
   ArrowDownTrayIcon,
   LinkIcon
 } from '@heroicons/react/24/outline';
-import { doc, getDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, deleteDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { ref, deleteObject } from 'firebase/storage';
 // @ts-ignore
 import { db, storage } from '../firebaseConfig';
 import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface EventData {
   id: string;
@@ -40,6 +41,7 @@ const OrganiserEventDetail = () => {
   const [error, setError] = useState<string>('');
   const [showReportForm, setShowReportForm] = useState(false);
   const [reportReady, setReportReady] = useState(false);
+  const [isGeneratingAttendance, setIsGeneratingAttendance] = useState(false);
 
   // Report form state — all manually entered by the secretary
   const [, setReportPhoto] = useState<File | null>(null);
@@ -351,6 +353,72 @@ const OrganiserEventDetail = () => {
     });
   };
 
+  const generateAttendanceList = async () => {
+    if (!eventData || !eventData.Participants || eventData.Participants.length === 0) {
+      alert("No registered participants for this event.");
+      return;
+    }
+
+    setIsGeneratingAttendance(true);
+    try {
+      const usersCollection = collection(db, 'users');
+      const participantPromises = eventData.Participants.map(async (email: string) => {
+        const q = query(usersCollection, where("email", "==", email));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          const userDoc = querySnapshot.docs[0];
+          return userDoc.data();
+        }
+        return { email, name: 'User not found' };
+      });
+      
+      const participantData = await Promise.all(participantPromises);
+      
+      // Generate PDF
+      const pdf = new jsPDF();
+      
+      pdf.setFontSize(18);
+      pdf.setTextColor(0, 51, 102);
+      pdf.text(`${eventData.name || 'Event'} - Attendance List`, pdf.internal.pageSize.width / 2, 20, { align: 'center' });
+      
+      pdf.setFontSize(12);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(`Date: ${eventData.event_date || 'N/A'}`, 14, 30);
+      pdf.text(`Venue: ${eventData.venue || 'N/A'}`, 14, 38);
+
+      const tableColumn = ['Sr Num', 'Class', 'UID', 'Name', 'Gender'];
+      const tableRows: any[][] = [];
+
+      participantData.forEach((user: any, index: number) => {
+        const userClass = user.batch || user.branch || user.division ? `${user.branch || ''} ${user.batch || ''} ${user.division || ''}`.trim() : 'N/A';
+        const rowData = [
+          index + 1,
+          userClass,
+          user.uid || 'N/A',
+          user.name || 'Anonymous',
+          user.gender || 'N/A'
+        ];
+        tableRows.push(rowData);
+      });
+
+      autoTable(pdf, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: 45,
+        styles: { fontSize: 10, cellPadding: 3 },
+        headStyles: { fillColor: [0, 51, 102], textColor: 255, fontStyle: 'bold' },
+      });
+
+      pdf.save(`${eventData.name.replace(/[^a-z0-9]/gi, '_')}_Attendance.pdf`);
+    } catch (error) {
+      console.error("Error generating attendance list:", error);
+      alert("Failed to generate attendance list.");
+    } finally {
+      setIsGeneratingAttendance(false);
+    }
+  };
+
   if (loading) return (
     <div className="flex justify-center items-center h-40 bg-[#e9f7f1]">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -513,13 +581,25 @@ const OrganiserEventDetail = () => {
                 Scan Tickets
               </button>
 
-              {/* New Event Details Button */}
+              {/* Registered Participants Button */}
               <button
                 onClick={() => navigate(`/OrganiserExtraDetails/${id}`)}
                 className="flex items-center gap-2 bg-[#246d8c] hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors"
               >
                 <DocumentTextIcon className="h-5 w-5" />
-                Event Details
+                Registered Participants
+              </button>
+              
+              {/* Download Attendance List Button */}
+              <button
+                onClick={generateAttendanceList}
+                disabled={isGeneratingAttendance}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                  isGeneratingAttendance ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#246d8c] hover:bg-indigo-700 text-white'
+                }`}
+              >
+                <ArrowDownTrayIcon className="h-5 w-5" />
+                {isGeneratingAttendance ? 'Generating...' : 'Attendance List'}
               </button>
             </div>
 
