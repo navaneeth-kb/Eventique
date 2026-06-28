@@ -9,7 +9,6 @@ import {
   sub,
   isSameMonth,
   isToday,
-  eachDayOfInterval,
 } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getFirestore, collection, getDocs, query, where } from "firebase/firestore";

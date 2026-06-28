@@ -10,7 +10,6 @@ const db = getFirestore();
 
 const HomePage: React.FC = () => {
   const [userName, setUserName] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [currentEvents, setCurrentEvents] = useState<any[]>([]);
   const [registeredEvents, setRegisteredEvents] = useState<any[]>([]);
@@ -92,11 +91,9 @@ const HomePage: React.FC = () => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUserName(user.displayName);
-        setUserEmail(user.email);
         fetchEvents(user.email);
       } else {
         setUserName('Guest');
-        setUserEmail(null);
         fetchEvents(null);
       }
     });
