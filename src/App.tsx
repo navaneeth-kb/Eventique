@@ -30,13 +30,9 @@ import OrganiserCalendar from './Pages/OrganiserCalendar';
 import OrganiserLogin from './Pages/OrganiserLogin';
 
 /**
- * Redirects authenticated users away from login/signup pages.
- * Checks Firestore to see if the user has completed their profile:
- *  - If profile exists → redirect to HomePage
- *  - If profile doesn't exist → redirect to AdditionalInfo
- *  - While checking → show nothing (brief flash)
+ * Redirects authenticated students away from login/signup pages.
  */
-function AuthRedirect({ user, children }: { user: User | null; children: React.ReactNode }) {
+function StudentAuthRedirect({ user, children }: { user: User | null; children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
   const [redirectTo, setRedirectTo] = useState<string | null>(null);
 
@@ -55,11 +51,17 @@ function AuthRedirect({ user, children }: { user: User | null; children: React.R
         if (docSnap.exists()) {
           setRedirectTo('/HomePage');
         } else {
-          setRedirectTo('/additionalinfo');
+          // If they are an organiser, don't redirect them to additional info, they shouldn't be here
+          const orgRef = doc(db, 'organizers', user.email || '');
+          const orgSnap = await getDoc(orgRef);
+          if (orgSnap.exists()) {
+            setRedirectTo('/OrganiserHomePage');
+          } else {
+            setRedirectTo('/additionalinfo');
+          }
         }
       } catch (error) {
         console.error('Error checking profile:', error);
-        // On error, default to additional info to be safe
         setRedirectTo('/additionalinfo');
       }
       setChecking(false);
@@ -68,8 +70,134 @@ function AuthRedirect({ user, children }: { user: User | null; children: React.R
     checkProfile();
   }, [user]);
 
-  if (checking && user) return null; // Brief loading while checking profile
+  if (checking && user) return null;
   if (redirectTo && user) return <Navigate to={redirectTo} />;
+  return <>{children}</>;
+}
+
+/**
+ * Redirects authenticated organisers away from the organiser login page.
+ */
+function OrganiserAuthRedirect({ user, children }: { user: User | null; children: React.ReactNode }) {
+  const [checking, setChecking] = useState(true);
+  const [isOrganiser, setIsOrganiser] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setChecking(false);
+      return;
+    }
+
+    const checkOrganiser = async () => {
+      try {
+        if (!user.email) {
+          setIsOrganiser(false);
+        } else {
+          const db = getFirestore();
+          const docRef = doc(db, 'organizers', user.email);
+          const docSnap = await getDoc(docRef);
+          setIsOrganiser(docSnap.exists());
+        }
+      } catch (error) {
+        setIsOrganiser(false);
+      }
+      setChecking(false);
+    };
+
+    checkOrganiser();
+  }, [user]);
+
+  if (checking && user) return null;
+  if (isOrganiser && user) return <Navigate to="/OrganiserHomePage" />;
+  return <>{children}</>;
+}
+
+/**
+ * Protects organiser routes so only users in the 'organizers' collection can access them.
+ */
+function OrganiserProtectedRoute({ user, children }: { user: User | null; children: React.ReactNode }) {
+  const [checking, setChecking] = useState(true);
+  const [isOrganiser, setIsOrganiser] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setChecking(false);
+      return;
+    }
+
+    const checkOrganiser = async () => {
+      try {
+        if (!user.email) {
+          setIsOrganiser(false);
+        } else {
+          const db = getFirestore();
+          const docRef = doc(db, 'organizers', user.email);
+          const docSnap = await getDoc(docRef);
+          setIsOrganiser(docSnap.exists());
+        }
+      } catch (error) {
+        setIsOrganiser(false);
+      }
+      setChecking(false);
+    };
+
+    checkOrganiser();
+  }, [user]);
+
+  if (checking) return (
+    <div className="min-h-screen bg-[#e9f7f1] flex items-center justify-center">
+      <div className="w-16 h-16 border-4 border-[#246d8c] border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+  if (!user || !isOrganiser) return <Navigate to="/organiser-login" />;
+  return <>{children}</>;
+}
+
+/**
+ * Protects student routes so only users who are not organisers can access them.
+ * Note: we could check the 'users' collection strictly, but students who haven't finished additional info 
+ * need to be able to access the student routes or at least not be treated as organisers.
+ */
+function StudentProtectedRoute({ user, children }: { user: User | null; children: React.ReactNode }) {
+  const [checking, setChecking] = useState(true);
+  const [isStudent, setIsStudent] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setChecking(false);
+      return;
+    }
+
+    const checkRole = async () => {
+      try {
+        if (user.email) {
+          const db = getFirestore();
+          const orgRef = doc(db, 'organizers', user.email);
+          const orgSnap = await getDoc(orgRef);
+          
+          if (orgSnap.exists()) {
+            setIsStudent(false); // They are an organiser, not a student
+          } else {
+            setIsStudent(true);
+          }
+        } else {
+          setIsStudent(true);
+        }
+      } catch (error) {
+        setIsStudent(false);
+      }
+      setChecking(false);
+    };
+
+    checkRole();
+  }, [user]);
+
+  if (checking) return (
+    <div className="min-h-screen bg-[#e9f7f1] flex items-center justify-center">
+      <div className="w-16 h-16 border-4 border-[#246d8c] border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+  if (!user || !isStudent) return <Navigate to="/login" />;
   return <>{children}</>;
 }
 
@@ -88,13 +216,15 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Splash />} />
-        <Route path="/login" element={<AuthRedirect user={user}><Login /></AuthRedirect>} />
-        <Route path="/signup" element={<AuthRedirect user={user}><Signup /></AuthRedirect>} />
+        <Route path="/login" element={<StudentAuthRedirect user={user}><Login /></StudentAuthRedirect>} />
+        <Route path="/signup" element={<StudentAuthRedirect user={user}><Signup /></StudentAuthRedirect>} />
         <Route path="/additionalinfo" element={user ? <AdditionalInfo /> : <Navigate to="/login" />} />
-        <Route path="/organiser-login" element={user ? <Navigate to="/OrganiserHomePage" /> : <OrganiserLogin />} />
+        
+        {/* Organiser Login uses its own redirect to avoid sending organisers to additional info */}
+        <Route path="/organiser-login" element={<OrganiserAuthRedirect user={user}><OrganiserLogin /></OrganiserAuthRedirect>} />
 
-        {/* Student Routes — wrapped in StudentLayout for persistent nav bar */}
-        <Route element={user ? <StudentLayout /> : <Navigate to="/login" />}>
+        {/* Student Routes — wrapped in StudentLayout and StudentProtectedRoute */}
+        <Route element={<StudentProtectedRoute user={user}><StudentLayout /></StudentProtectedRoute>}>
           <Route path="/HomePage" element={<HomePage />} />
           <Route path="/HomePage/TicketView" element={<Ticket />} />
           <Route path="/EventDetails" element={<EventDetails />} />
@@ -104,8 +234,8 @@ function App() {
           <Route path="/HomePage/Months" element={<Months />} />
         </Route>
 
-        {/* Organiser Routes — wrapped in OrganiserLayout for persistent nav bar */}
-        <Route element={user ? <OrganiserLayout /> : <Navigate to="/login" />}>
+        {/* Organiser Routes — wrapped in OrganiserLayout and OrganiserProtectedRoute */}
+        <Route element={<OrganiserProtectedRoute user={user}><OrganiserLayout /></OrganiserProtectedRoute>}>
           <Route path="/OrganiserHomePage" element={<OrganiserHomePage />} />
           <Route path="/OrganiserHomePage/EventCreation" element={<EventCreation />} />
           <Route path="/OrganiserHomePage/EventCreateSuccess" element={<EventCreateSuccess />} />
