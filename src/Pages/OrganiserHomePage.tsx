@@ -27,7 +27,7 @@ const EventSection: React.FC = () => {
           const data = docSnap.data();
           setOrganizerName(data.name);
         } else {
-          setOrganizerName("Default Organizer Name");
+          setOrganizerName(" Organizer Name");
         }
 
         const eventsCollection = collection(db, "event");
@@ -127,14 +127,13 @@ const EventSection: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredEvents.map((event) => (
               <Link key={event.id} to={`/OrganiserHomePage/${event.id}`} className="flex">
-                <div className={`bg-white rounded-md p-4 shadow-lg flex flex-col items-center w-full h-full ${
-                  event.isClosed ? 'opacity-80' : ''
-                }`}>
+                <div className={`bg-white rounded-md p-4 shadow-lg flex flex-col items-center w-full h-full ${event.isClosed ? 'opacity-80' : ''
+                  }`}>
                   {/* Square Poster Image */}
                   <div className="w-full aspect-square mb-3 relative">
-                    <img 
-                      src={event.poster} 
-                      alt={event.name} 
+                    <img
+                      src={event.poster}
+                      alt={event.name}
                       className="w-full h-full object-cover rounded-md"
                       onError={(e) => {
                         // @ts-ignore
