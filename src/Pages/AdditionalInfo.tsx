@@ -63,8 +63,14 @@ const ProfileCompletion: React.FC = () => {
       });
       console.log('Profile data saved successfully!');
 
-      // Redirect to homepage after successful submission
-      navigate('/HomePage');
+      // Check if user came from a shared event link
+      const pendingRedirect = localStorage.getItem('eventique_redirect');
+      if (pendingRedirect) {
+        localStorage.removeItem('eventique_redirect');
+        navigate(pendingRedirect);
+      } else {
+        navigate('/HomePage');
+      }
     } catch (error) {
       console.error('Error saving profile data: ', error);
       alert('There was an error saving your profile. Please try again.');

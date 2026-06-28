@@ -7,7 +7,8 @@ import {
   LockClosedIcon,
   DocumentTextIcon,
   ClipboardDocumentIcon,
-  ArrowDownTrayIcon
+  ArrowDownTrayIcon,
+  LinkIcon
 } from '@heroicons/react/24/outline';
 import { doc, getDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { ref, deleteObject } from 'firebase/storage';
@@ -444,6 +445,18 @@ const OrganiserEventDetail = () => {
 
             {/* Action Buttons */}
             <div className="mt-8 flex flex-wrap gap-4 justify-center">
+              {/* Copy Shareable Event Link */}
+              <button
+                onClick={() => {
+                  const link = `${window.location.origin}/event/${id}`;
+                  navigator.clipboard.writeText(link);
+                  alert(`Event link copied!\n${link}`);
+                }}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                <LinkIcon className="h-5 w-5" />
+                Copy Event Link
+              </button>
               {eventData.status !== 'closed' && (
                 <Link
                   to={`/OrganiserHomePage/EditEvent/${id}`}

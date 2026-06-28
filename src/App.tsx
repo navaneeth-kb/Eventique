@@ -201,6 +201,16 @@ function StudentProtectedRoute({ user, children }: { user: User | null; children
   return <>{children}</>;
 }
 
+/**
+ * Saves the current event URL to localStorage and redirects to login.
+ * After login, the user will be sent back to this event page.
+ */
+function EventLoginRedirect() {
+  const currentPath = window.location.pathname;
+  localStorage.setItem('eventique_redirect', currentPath);
+  return <Navigate to="/login" />;
+}
+
 function App() {
   const [user, setUser] = useState<User | null>(null);
 
@@ -223,12 +233,22 @@ function App() {
         {/* Organiser Login uses its own redirect to avoid sending organisers to additional info */}
         <Route path="/organiser-login" element={<OrganiserAuthRedirect user={user}><OrganiserLogin /></OrganiserAuthRedirect>} />
 
+        {/* Public Event Route — redirects to login if not authenticated, then back to event */}
+        <Route path="/event/:id" element={
+          user ? (
+            <StudentProtectedRoute user={user}><StudentLayout /></StudentProtectedRoute>
+          ) : (
+            <EventLoginRedirect />
+          )
+        }>
+          <Route index element={<EventDetails />} />
+        </Route>
+
         {/* Student Routes — wrapped in StudentLayout and StudentProtectedRoute */}
         <Route element={<StudentProtectedRoute user={user}><StudentLayout /></StudentProtectedRoute>}>
           <Route path="/HomePage" element={<HomePage />} />
           <Route path="/HomePage/TicketView" element={<Ticket />} />
           <Route path="/EventDetails" element={<EventDetails />} />
-          <Route path="/event/:id" element={<EventDetails />} />
           <Route path="/HomePage/Profile" element={<Profile />} />
           <Route path="/HomePage/Profile/EditProfile" element={<EditProfile />} />
           <Route path="/HomePage/Months" element={<Months />} />

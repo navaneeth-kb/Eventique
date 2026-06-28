@@ -26,11 +26,20 @@ const Login = () => {
         const docRef = doc(db, 'users', user.uid);
         const docSnap = await getDoc(docRef);
 
+        // Check if user came from a shared event link
+        const pendingRedirect = localStorage.getItem('eventique_redirect');
+
         if (docSnap.exists()) {
-          // User found with completed profile, navigate to the home page
-          navigate('/HomePage');
+          // User found with completed profile
+          if (pendingRedirect) {
+            localStorage.removeItem('eventique_redirect');
+            navigate(pendingRedirect);
+          } else {
+            navigate('/HomePage');
+          }
         } else {
           // First-time user — collect additional info before proceeding
+          // Keep the redirect stored so AdditionalInfo can use it later
           navigate('/additionalinfo');
         }
       } else {
