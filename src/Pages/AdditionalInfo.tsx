@@ -110,7 +110,7 @@ const ProfileCompletion: React.FC = () => {
         />
         <Dropdown
           label="Division"
-          options={['A', 'B', 'C', 'D', 'None']}
+          options={['Alpha', 'Beta', 'Gamma', 'Delta', 'None']}
           value={division}
           // @ts-ignore
           setValue={setDivision}
