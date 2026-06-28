@@ -8,7 +8,8 @@ import {
   DocumentTextIcon,
   ClipboardDocumentIcon,
   ArrowDownTrayIcon,
-  LinkIcon
+  LinkIcon,
+  ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import { doc, getDoc, deleteDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { ref, deleteObject } from 'firebase/storage';
@@ -433,6 +434,15 @@ const OrganiserEventDetail = () => {
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4 bg-[#e9f7f1] min-h-screen">
+      <div className="mb-4">
+        <button 
+          onClick={() => navigate(-1)}
+          className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <ArrowLeftIcon className="h-5 w-5 mr-2" />
+          Back
+        </button>
+      </div>
       {eventData ? (
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           {/* Event Header */}

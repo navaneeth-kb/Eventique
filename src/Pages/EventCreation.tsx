@@ -5,6 +5,7 @@ import { db, collection, addDoc, auth, storage } from "../firebaseConfig";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getDoc, doc, Timestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 
 const CreateEvent: React.FC = () => {
   const navigate = useNavigate();
@@ -198,6 +199,15 @@ const CreateEvent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#e9f7f1] flex flex-col items-center p-4 pt-6 pb-20">
+      <div className="w-full max-w-2xl mb-2">
+        <button 
+          onClick={() => navigate(-1)}
+          className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <ArrowLeftIcon className="h-5 w-5 mr-2" />
+          Back
+        </button>
+      </div>
       {/* Page Title */}
       <h2 className="text-2xl font-bold text-[#246d8c] mb-5 tracking-wide text-center">
         Create Event

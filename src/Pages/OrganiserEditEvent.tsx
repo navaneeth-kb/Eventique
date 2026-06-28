@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 // @ts-ignore
@@ -123,8 +124,18 @@ const OrganiserEditEvent = () => {
   if (error) return <p>{error}</p>;
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white shadow-md rounded-md">
-      <h2 className="text-2xl font-semibold mb-4">Edit Event</h2>
+    <div className="min-h-screen bg-[#e9f7f1] p-4">
+      <div className="max-w-2xl mx-auto mb-4">
+        <button 
+          onClick={() => navigate(-1)}
+          className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <ArrowLeftIcon className="h-5 w-5 mr-2" />
+          Back
+        </button>
+      </div>
+      <div className="max-w-2xl mx-auto p-6 bg-white shadow-md rounded-md">
+        <h2 className="text-2xl font-semibold mb-4">Edit Event</h2>
       <form onSubmit={handleUpdate} className="space-y-4">
         <div>
           <label htmlFor="event-name" className="block text-sm font-medium">Event Name</label>
@@ -252,6 +263,7 @@ const OrganiserEditEvent = () => {
           {uploading ? 'Updating...' : 'Update Event'}
         </button>
       </form>
+      </div>
     </div>
   );
 };

@@ -4,8 +4,11 @@ import { collection, getDocs, query, where, doc, updateDoc, arrayUnion, Timestam
 import { db } from "../firebaseConfig"; // Adjust the path as needed
 import BarcodeScannerComponent from "react-qr-barcode-scanner"; // QR scanner
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 const Scan: React.FC = () => {
+  const navigate = useNavigate();
   const [data, setData] = useState<string>("");
   const [status, setStatus] = useState<string>("");
   const [organizerEmail, setOrganizerEmail] = useState<string | null>(null);
@@ -109,33 +112,53 @@ const Scan: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white">
-      <h2 className="text-3xl font-bold mb-6">📷 Scan QR Code</h2>
-      
-      <div className="bg-gray-800 p-6 rounded-lg shadow-lg text-center">
-        <BarcodeScannerComponent
-          width={400}
-          height={400}
-          // @ts-ignore
-          onUpdate={(err, result) => {
-            if (result) {
-              // @ts-ignore
-              setData(result.text ? result.text.replace(/^User:/i, "").trim() : "Not Found");
-            }
-          }}
-        />
+    <div className="min-h-screen bg-[#e9f7f1] p-4 flex flex-col items-center">
+      <div className="w-full max-w-2xl mb-4">
+        <button 
+          onClick={() => navigate(-1)}
+          className="flex items-center text-gray-600 hover:text-[#246d8c] transition-colors font-medium"
+        >
+          <ArrowLeftIcon className="h-5 w-5 mr-2" />
+          Back
+        </button>
       </div>
 
-      {scannedUser && (
-        <div className="mt-6 p-4 bg-green-600 text-white rounded-lg shadow-md animate-fadeIn">
-          <h3 className="text-xl font-semibold">✅ Scanned User</h3>
-          <p className="text-lg"><b>Name:</b> {scannedUser.name}</p>
-          <p className="text-lg"><b>Email:</b> {scannedUser.email}</p>
-          <p className="text-lg"><b>UID:</b> {scannedUser.uid}</p>
+      <div className="w-full max-w-xl bg-white p-8 rounded-xl shadow-lg border border-gray-100 flex flex-col items-center">
+        <h2 className="text-3xl font-bold mb-6 text-[#246d8c]">Scan QR Code</h2>
+        
+        <div className="bg-gray-50 p-2 rounded-xl shadow-inner border border-gray-200 mb-6 w-full flex justify-center overflow-hidden">
+          <BarcodeScannerComponent
+            width={300}
+            height={300}
+            // @ts-ignore
+            onUpdate={(err, result) => {
+              if (result) {
+                // @ts-ignore
+                setData(result.text ? result.text.replace(/^User:/i, "").trim() : "Not Found");
+              }
+            }}
+          />
         </div>
-      )}
 
-      <p className="mt-4 text-lg">{status}</p>
+        {scannedUser && (
+          <div className="w-full mt-2 p-5 bg-green-50 border border-green-200 text-green-800 rounded-lg shadow-sm animate-fadeIn">
+            <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
+              <span className="text-2xl">✅</span> Scanned User
+            </h3>
+            <div className="space-y-1">
+              <p className="text-md"><b className="font-semibold text-green-900">Name:</b> {scannedUser.name}</p>
+              <p className="text-md"><b className="font-semibold text-green-900">Email:</b> {scannedUser.email}</p>
+              <p className="text-md"><b className="font-semibold text-green-900">UID:</b> {scannedUser.uid}</p>
+            </div>
+          </div>
+        )}
+
+        {status && !scannedUser && (
+          <div className={`w-full mt-4 p-4 rounded-lg text-center font-medium ${status.includes('❌') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-yellow-50 text-yellow-700 border border-yellow-200'}`}>
+            {status}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
