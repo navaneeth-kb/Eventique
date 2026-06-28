@@ -31,6 +31,7 @@ interface EventData {
   registrationOpen?: boolean;
   num_of_participants?: number;
   attendees?: any[];
+  Participants?: string[];
   coordinators?: { name: string; phone: string }[];
   description?: string;
 }
