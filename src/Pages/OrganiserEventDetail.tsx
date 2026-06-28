@@ -42,7 +42,7 @@ const OrganiserEventDetail = () => {
   const [reportReady, setReportReady] = useState(false);
 
   // Report form state — all manually entered by the secretary
-  const [reportPhoto, setReportPhoto] = useState<File | null>(null);
+  const [, setReportPhoto] = useState<File | null>(null);
   const [reportPhotoPreview, setReportPhotoPreview] = useState('');
   const [reportDateWithTime, setReportDateWithTime] = useState('');
   const [reportVenue, setReportVenue] = useState('');
