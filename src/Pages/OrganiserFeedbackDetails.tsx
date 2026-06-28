@@ -5,6 +5,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Feedback {
   email: string;
@@ -109,7 +110,8 @@ const OrganiserFeedbackDetails = () => {
       return;
     }
 
-    const pdf = new jsPDF();
+    // Use landscape orientation for spreadsheet view
+    const pdf = new jsPDF('landscape');
     
     // Set document properties
     pdf.setProperties({
@@ -123,69 +125,48 @@ const OrganiserFeedbackDetails = () => {
     pdf.setFontSize(18);
     pdf.setTextColor(0, 51, 102);
     pdf.setFont('helvetica', 'bold');
-    pdf.text(`${eventData?.name} - Feedback Report`, 105, 20, { align: 'center' });
+    pdf.text(`${eventData?.name} - Feedback Report`, pdf.internal.pageSize.width / 2, 20, { align: 'center' });
 
     // Add subtitle
     pdf.setFontSize(12);
     pdf.setTextColor(0, 0, 0);
     pdf.setFont('helvetica', 'normal');
-    pdf.text(`Generated on ${new Date().toLocaleDateString()}`, 105, 28, { align: 'center' });
+    pdf.text(`Generated on ${new Date().toLocaleDateString()}`, pdf.internal.pageSize.width / 2, 28, { align: 'center' });
 
-    let yPosition = 40;
+    // Prepare table data
+    const tableColumn = ['Timestamp', 'Name', 'Email', 'Gender', 'Q1 (Rec)', 'Q2 (Rate)', 'Q3 (Info)', 'Q4 (Dur)', 'Q5 (Sat)', 'Q6 (Learn)', 'Q7 (Comment)'];
+    const tableRows: any[][] = [];
 
-    // Add feedback items
-    pdf.setFontSize(10);
-    feedback.forEach((item, index) => {
-      if (yPosition > 260) {
-        pdf.addPage();
-        yPosition = 20;
-      }
-
-      // Add divider if not first item
-      if (index > 0) {
-        pdf.setDrawColor(200, 200, 200);
-        pdf.line(20, yPosition, 190, yPosition);
-        yPosition += 5;
-      }
-
-      // Add feedback header
-      pdf.setFontSize(12);
-      pdf.setTextColor(0, 0, 0);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(`Feedback #${index + 1}`, 20, yPosition);
-      
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Submitted: ${item.timestamp?.toDate().toLocaleString() || 'Unknown date'}`, 130, yPosition);
-      yPosition += 7;
-
-      // Add user info
-      pdf.text(`Name: ${item.userName || 'Anonymous'} | Email: ${item.email} | Gender: ${item.gender || 'N/A'}`, 20, yPosition);
-      yPosition += 6;
-
-      // Add questions
+    feedback.forEach(item => {
       const q1 = item.q1Rec !== undefined ? item.q1Rec : (item.rating ? item.rating * 2 : 'N/A');
-      pdf.text(`Q1 (Recommend): ${q1}/10 | Q2 (Rating): ${item.q2Rate || 'N/A'}`, 20, yPosition);
-      yPosition += 6;
-      
-      pdf.text(`Q3 (Info): ${item.q3Info || 'N/A'}`, 20, yPosition);
-      yPosition += 6;
-      
-      pdf.text(`Q4 (Duration): ${item.q4Dur || 'N/A'} | Q5 (Satisfaction): ${item.q5Sat || 'N/A'}`, 20, yPosition);
-      yPosition += 6;
-      
-      pdf.text(`Q6 (Learnings): ${item.q6Learn || 'N/A'}`, 20, yPosition);
-      yPosition += 6;
-
-      // Add comment if exists
       const q7 = item.q7Comment || item.comment || '';
-      if (q7) {
-        const commentLines = pdf.splitTextToSize(`Q7 (Comments): ${q7}`, 170);
-        pdf.text(commentLines, 20, yPosition);
-        yPosition += 6 * commentLines.length;
-      }
       
-      yPosition += 4; // Extra space before next item
+      const rowData = [
+        item.timestamp?.toDate().toLocaleString() || 'Unknown date',
+        item.userName || 'Anonymous',
+        item.email,
+        item.gender || 'N/A',
+        q1 !== 'N/A' ? `${q1}/10` : 'N/A',
+        item.q2Rate || 'N/A',
+        item.q3Info || 'N/A',
+        item.q4Dur || 'N/A',
+        item.q5Sat || 'N/A',
+        item.q6Learn || 'N/A',
+        q7
+      ];
+      tableRows.push(rowData);
+    });
+
+    autoTable(pdf, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 35,
+      styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+      headStyles: { fillColor: [0, 51, 102], textColor: 255, fontStyle: 'bold' },
+      columnStyles: {
+        10: { cellWidth: 50 } // Give more width to the comment column
+      },
+      margin: { top: 35 }
     });
 
     pdf.save(`${eventData?.name.replace(/[^a-z0-9]/gi, '_')}_feedback.pdf`);
