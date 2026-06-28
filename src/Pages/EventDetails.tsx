@@ -16,6 +16,7 @@ interface UserProfile {
   branch: string;
   division: string;
   year: number;
+  gender?: string;
 }
 
 type CertificateStyle = "classic" | "modern" | "elegant" | "minimal";
@@ -45,8 +46,15 @@ const EventDetails: React.FC = () => {
     division: "",
     year: 0
   });
-  const [rating, setRating] = useState<number | null>(null);
-  const [comment, setComment] = useState<string>("");
+  // Feedback States
+  const [q1Rec, setQ1Rec] = useState<number | null>(null);
+  const [q2Rate, setQ2Rate] = useState<string>("");
+  const [q3Info, setQ3Info] = useState<string>("");
+  const [q4Dur, setQ4Dur] = useState<string>("");
+  const [q5Sat, setQ5Sat] = useState<string>("");
+  const [q6Learn, setQ6Learn] = useState<string>("");
+  const [q7Comment, setQ7Comment] = useState<string>("");
+  
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [userFeedback, setUserFeedback] = useState<any>(null);
@@ -87,7 +95,8 @@ const EventDetails: React.FC = () => {
           batch: userData.batch || "",
           branch: userData.branch || "",
           division: userData.division || "",
-          year: userData.year || 0
+          year: userData.year || 0,
+          gender: userData.gender || ""
         });
       }
     } catch (error) {
@@ -157,16 +166,22 @@ const EventDetails: React.FC = () => {
   }, [id, userEmail]);
 
   const submitFeedback = async () => {
-    if (!userEmail || !id || rating === null || isSubmittingFeedback) return;
+    if (!userEmail || !id || q1Rec === null || !q2Rate || !q3Info || !q4Dur || !q5Sat || !q6Learn || isSubmittingFeedback) return;
   
     setIsSubmittingFeedback(true);
     try {
       const feedbackData = {
         email: userEmail,
-        rating,
-        comment,
         timestamp: new Date(),
-        userName: userProfile.name
+        userName: userProfile.name,
+        gender: userProfile.gender || "",
+        q1Rec,
+        q2Rate,
+        q3Info,
+        q4Dur,
+        q5Sat,
+        q6Learn,
+        q7Comment
       };
   
       const eventRef = doc(db, 'event', id);
@@ -315,8 +330,13 @@ const EventDetails: React.FC = () => {
               if (userFeedback) {
                 setFeedbackSubmitted(true);
                 setUserFeedback(userFeedback);
-                setRating(userFeedback.rating);
-                setComment(userFeedback.comment);
+                setQ1Rec(userFeedback.q1Rec ?? null);
+                setQ2Rate(userFeedback.q2Rate || "");
+                setQ3Info(userFeedback.q3Info || "");
+                setQ4Dur(userFeedback.q4Dur || "");
+                setQ5Sat(userFeedback.q5Sat || "");
+                setQ6Learn(userFeedback.q6Learn || "");
+                setQ7Comment(userFeedback.q7Comment || userFeedback.comment || "");
               }
             }
             
@@ -579,68 +599,147 @@ const EventDetails: React.FC = () => {
  
 
 {isEventClosed && isPresent && (
-  <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-md">
-    <h3 className="text-lg font-medium text-gray-700 mb-3 text-center">
-      {feedbackSubmitted ? 'Thank you for your feedback!' : 'How was the event?'}
+  <div className="mt-4 p-6 bg-white border border-gray-200 shadow-sm rounded-lg w-full max-w-2xl mx-auto">
+    <h3 className="text-xl font-semibold text-gray-800 mb-6 text-center border-b pb-4">
+      {feedbackSubmitted ? 'Thank you for your feedback!' : 'Event Feedback'}
     </h3>
     
     {feedbackSubmitted ? (
-      <div className="text-center">
-        <div className="flex justify-center mb-2">
-          {[...Array(5)].map((_, i) => (
-            <svg
-              key={i}
-              className={`w-6 h-6 ${i < userFeedback.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-            </svg>
-          ))}
+      <div className="space-y-4">
+        <div className="bg-green-50 text-green-800 p-4 rounded-md text-center mb-6">
+          Your feedback has been recorded successfully.
         </div>
-        {userFeedback.comment && (
-          <p className="text-gray-600 italic">"{userFeedback.comment}"</p>
-        )}
+        <div className="text-sm text-gray-700 space-y-2">
+          <p><strong>Recommendation Score:</strong> {userFeedback.q1Rec || (userFeedback.rating ? userFeedback.rating * 2 : 'N/A')}/10</p>
+          <p><strong>Event Rating:</strong> {userFeedback.q2Rate || 'N/A'}</p>
+          <p><strong>Information Provided:</strong> {userFeedback.q3Info || 'N/A'}</p>
+          <p><strong>Duration Fit:</strong> {userFeedback.q4Dur || 'N/A'}</p>
+          <p><strong>Overall Satisfaction:</strong> {userFeedback.q5Sat || 'N/A'}</p>
+          <p><strong>New Learnings:</strong> {userFeedback.q6Learn || 'N/A'}</p>
+          {(userFeedback.q7Comment || userFeedback.comment) && (
+            <div>
+              <strong>Comments:</strong> 
+              <p className="mt-1 bg-gray-50 p-3 rounded text-gray-600 italic">"{userFeedback.q7Comment || userFeedback.comment}"</p>
+            </div>
+          )}
+        </div>
       </div>
     ) : (
-      <>
-        <div className="flex justify-center mb-4">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <button
-              key={star}
-              onClick={() => setRating(star)}
-              className="focus:outline-none"
-            >
-              <svg
-                className={`w-8 h-8 mx-1 ${rating && star <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                fill="currentColor"
-                viewBox="0 0 20 20"
+      <div className="space-y-6 text-sm">
+        {/* Q1 */}
+        <div className="space-y-3">
+          <label className="block font-medium text-gray-800">
+            1. Considering your complete experience at the event, how likely are you to recommend our future events to your friends or colleagues?
+          </label>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+              <button
+                key={num}
+                onClick={() => setQ1Rec(num)}
+                className={`w-10 h-10 rounded-full font-medium transition-colors ${
+                  q1Rec === num 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
               >
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
-            </button>
-          ))}
+                {num}
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-between text-xs text-gray-500 px-2">
+            <span>Not likely</span>
+            <span>Extremely likely</span>
+          </div>
         </div>
-        
-        <textarea
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          placeholder="Share your experience (optional)"
-          className="w-full border border-gray-300 rounded-md p-2 text-sm mb-3 min-h-[80px]"
-        />
+
+        {/* Q2 */}
+        <div className="space-y-2">
+          <label className="block font-medium text-gray-800">2. How would you rate the event?</label>
+          <div className="space-y-1">
+            {['Very good', 'Good', 'Acceptable', 'Poor', 'Very poor'].map((opt) => (
+              <label key={opt} className="flex items-center space-x-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                <input type="radio" name="q2Rate" value={opt} checked={q2Rate === opt} onChange={(e) => setQ2Rate(e.target.value)} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
+                <span className="text-gray-700">{opt}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Q3 */}
+        <div className="space-y-2">
+          <label className="block font-medium text-gray-800">3. How much pre-event information was provided to you to help you better understand the event?</label>
+          <div className="space-y-1">
+            {['All of the information', 'Most of the information', 'Some of the information', 'A little of the information', 'None of the information'].map((opt) => (
+              <label key={opt} className="flex items-center space-x-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                <input type="radio" name="q3Info" value={opt} checked={q3Info === opt} onChange={(e) => setQ3Info(e.target.value)} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
+                <span className="text-gray-700">{opt}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Q4 */}
+        <div className="space-y-2">
+          <label className="block font-medium text-gray-800">4. Please state your level of agreement with the statement: The duration of the event was just right.</label>
+          <div className="space-y-1">
+            {['Strongly disagree', 'Disagree', 'Agree', 'Strongly agree'].map((opt) => (
+              <label key={opt} className="flex items-center space-x-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                <input type="radio" name="q4Dur" value={opt} checked={q4Dur === opt} onChange={(e) => setQ4Dur(e.target.value)} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
+                <span className="text-gray-700">{opt}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Q5 */}
+        <div className="space-y-2">
+          <label className="block font-medium text-gray-800">5. Overall, how satisfied were you with the event?</label>
+          <div className="space-y-1">
+            {['Very dissatisfied', 'Dissatisfied', 'Neutral', 'Satisfied', 'Very satisfied'].map((opt) => (
+              <label key={opt} className="flex items-center space-x-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                <input type="radio" name="q5Sat" value={opt} checked={q5Sat === opt} onChange={(e) => setQ5Sat(e.target.value)} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
+                <span className="text-gray-700">{opt}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Q6 */}
+        <div className="space-y-2">
+          <label className="block font-medium text-gray-800">6. Did the event help you with new learnings or knowledge?</label>
+          <div className="space-y-1">
+            {['Yes', 'No'].map((opt) => (
+              <label key={opt} className="flex items-center space-x-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                <input type="radio" name="q6Learn" value={opt} checked={q6Learn === opt} onChange={(e) => setQ6Learn(e.target.value)} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
+                <span className="text-gray-700">{opt}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Q7 */}
+        <div className="space-y-2">
+          <label className="block font-medium text-gray-800">7. Do you have any other comments/suggestions that would help us make future events better?</label>
+          <textarea
+            value={q7Comment}
+            onChange={(e) => setQ7Comment(e.target.value)}
+            placeholder="Share your thoughts (optional)"
+            className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[100px]"
+          />
+        </div>
         
         <button
           onClick={submitFeedback}
-          disabled={rating === null || isSubmittingFeedback}
-          className={`w-full py-2 rounded-md text-sm font-medium ${
-            rating === null || isSubmittingFeedback
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700 text-white'
+          disabled={q1Rec === null || !q2Rate || !q3Info || !q4Dur || !q5Sat || !q6Learn || isSubmittingFeedback}
+          className={`w-full py-3 rounded-md text-base font-semibold shadow-sm transition-all ${
+            q1Rec === null || !q2Rate || !q3Info || !q4Dur || !q5Sat || !q6Learn || isSubmittingFeedback
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-md'
           }`}
         >
           {isSubmittingFeedback ? 'Submitting...' : 'Submit Feedback'}
         </button>
-      </>
+      </div>
     )}
   </div>
 )}

@@ -8,10 +8,18 @@ import { jsPDF } from 'jspdf';
 
 interface Feedback {
   email: string;
-  rating: number;
-  comment: string;
+  rating: number; // backward compatibility
+  comment: string; // backward compatibility
   timestamp: any;
   userName: string;
+  gender?: string;
+  q1Rec?: number;
+  q2Rate?: string;
+  q3Info?: string;
+  q4Dur?: string;
+  q5Sat?: string;
+  q6Learn?: string;
+  q7Comment?: string;
 }
 
 const OrganiserFeedbackDetails = () => {
@@ -55,21 +63,31 @@ const OrganiserFeedbackDetails = () => {
       return;
     }
 
-    const headers = ['Name', 'Email', 'Rating', 'Comment', 'Date'];
+    const headers = ['Timestamp', 'Name', 'Email', 'Gender', 'Q1 (Recommend)', 'Q2 (Rating)', 'Q3 (Info)', 'Q4 (Duration)', 'Q5 (Satisfaction)', 'Q6 (Learnings)', 'Q7 (Comments)'];
     const csvRows = [];
 
     // Add headers
-    csvRows.push(headers.join(','));
+    csvRows.push(headers.map(h => `"${h}"`).join(','));
 
     // Add data rows
     for (const item of feedback) {
+      const q1 = item.q1Rec !== undefined ? item.q1Rec : (item.rating ? item.rating * 2 : 'N/A');
+      const q7 = item.q7Comment || item.comment || '';
+      
       const row = [
-        `"${item.userName || 'Anonymous'}"`,
+        item.timestamp?.toDate().toLocaleString() || 'Unknown date',
+        item.userName || 'Anonymous',
         item.email,
-        item.rating,
-        `"${item.comment?.replace(/"/g, '""') || ''}"`,
-        item.timestamp?.toDate().toLocaleDateString() || 'Unknown date'
-      ];
+        item.gender || 'N/A',
+        q1,
+        item.q2Rate || 'N/A',
+        item.q3Info || 'N/A',
+        item.q4Dur || 'N/A',
+        item.q5Sat || 'N/A',
+        item.q6Learn || 'N/A',
+        q7.replace(/"/g, '""')
+      ].map(field => `"${field}"`);
+      
       csvRows.push(row.join(','));
     }
 
@@ -118,7 +136,7 @@ const OrganiserFeedbackDetails = () => {
     // Add feedback items
     pdf.setFontSize(10);
     feedback.forEach((item, index) => {
-      if (yPosition > 270) {
+      if (yPosition > 260) {
         pdf.addPage();
         yPosition = 20;
       }
@@ -135,28 +153,39 @@ const OrganiserFeedbackDetails = () => {
       pdf.setTextColor(0, 0, 0);
       pdf.setFont('helvetica', 'bold');
       pdf.text(`Feedback #${index + 1}`, 20, yPosition);
+      
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Submitted: ${item.timestamp?.toDate().toLocaleString() || 'Unknown date'}`, 130, yPosition);
       yPosition += 7;
 
       // Add user info
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`From: ${item.userName || 'Anonymous'} (${item.email})`, 20, yPosition);
+      pdf.text(`Name: ${item.userName || 'Anonymous'} | Email: ${item.email} | Gender: ${item.gender || 'N/A'}`, 20, yPosition);
       yPosition += 6;
 
-      // Add rating
-      pdf.text(`Rating: ${'★'.repeat(item.rating)}${'☆'.repeat(5 - item.rating)}`, 20, yPosition);
+      // Add questions
+      const q1 = item.q1Rec !== undefined ? item.q1Rec : (item.rating ? item.rating * 2 : 'N/A');
+      pdf.text(`Q1 (Recommend): ${q1}/10 | Q2 (Rating): ${item.q2Rate || 'N/A'}`, 20, yPosition);
+      yPosition += 6;
+      
+      pdf.text(`Q3 (Info): ${item.q3Info || 'N/A'}`, 20, yPosition);
+      yPosition += 6;
+      
+      pdf.text(`Q4 (Duration): ${item.q4Dur || 'N/A'} | Q5 (Satisfaction): ${item.q5Sat || 'N/A'}`, 20, yPosition);
+      yPosition += 6;
+      
+      pdf.text(`Q6 (Learnings): ${item.q6Learn || 'N/A'}`, 20, yPosition);
       yPosition += 6;
 
       // Add comment if exists
-      if (item.comment) {
-        const commentLines = pdf.splitTextToSize(`Comment: ${item.comment}`, 170);
+      const q7 = item.q7Comment || item.comment || '';
+      if (q7) {
+        const commentLines = pdf.splitTextToSize(`Q7 (Comments): ${q7}`, 170);
         pdf.text(commentLines, 20, yPosition);
         yPosition += 6 * commentLines.length;
       }
-
-      // Add timestamp
-      pdf.text(`Submitted: ${item.timestamp?.toDate().toLocaleString() || 'Unknown date'}`, 20, yPosition);
-      yPosition += 10;
+      
+      yPosition += 4; // Extra space before next item
     });
 
     pdf.save(`${eventData?.name.replace(/[^a-z0-9]/gi, '_')}_feedback.pdf`);
@@ -221,38 +250,68 @@ const OrganiserFeedbackDetails = () => {
               <p className="text-gray-500">No feedback has been submitted for this event yet.</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {feedback.map((item, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-medium">
-                        {item.userName || 'Anonymous'} ({item.email})
-                      </h3>
-                      <div className="flex items-center mt-1">
-                        {[...Array(5)].map((_, i) => (
-                          <svg
-                            key={i}
-                            className={`w-5 h-5 ${i < item.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                          </svg>
-                        ))}
-                        <span className="ml-2 text-sm text-gray-500">
-                          {item.timestamp?.toDate().toLocaleString() || 'Unknown date'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  {item.comment && (
-                    <div className="mt-3 bg-gray-50 p-3 rounded">
-                      <p className="text-gray-700">{item.comment}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+              <table className="min-w-full divide-y divide-gray-200 text-sm text-left">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">Timestamp</th>
+                    <th className="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">Name</th>
+                    <th className="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">Email</th>
+                    <th className="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">Gender</th>
+                    <th className="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">Q1 (Recommend)</th>
+                    <th className="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">Q2 (Rating)</th>
+                    <th className="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">Q3 (Info)</th>
+                    <th className="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">Q4 (Duration)</th>
+                    <th className="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">Q5 (Satisfaction)</th>
+                    <th className="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">Q6 (Learnings)</th>
+                    <th className="px-4 py-3 font-medium text-gray-700 min-w-[200px]">Q7 (Comments)</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {feedback.map((item, index) => {
+                    const q1 = item.q1Rec !== undefined ? item.q1Rec : (item.rating ? item.rating * 2 : 'N/A');
+                    const q7 = item.q7Comment || item.comment || '';
+                    
+                    return (
+                      <tr key={index} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                          {item.timestamp?.toDate().toLocaleString() || 'Unknown'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">
+                          {item.userName || 'Anonymous'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                          {item.email}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                          {item.gender || 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                          {q1 !== 'N/A' ? `${q1}/10` : 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                          {item.q2Rate || 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                          {item.q3Info || 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                          {item.q4Dur || 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                          {item.q5Sat || 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                          {item.q6Learn || 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-700 text-xs italic bg-gray-50/50">
+                          {q7 ? `"${q7}"` : '-'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
