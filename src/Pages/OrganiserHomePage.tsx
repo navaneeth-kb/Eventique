@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import hi from "../assets/Home/hi.svg";
 import { doc, getDoc, getDocs, collection } from "firebase/firestore";
 // @ts-ignore
@@ -7,7 +6,6 @@ import { auth, db } from "../firebaseConfig";
 import { Link } from "react-router-dom";
 
 const EventSection: React.FC = () => {
-  const navigate = useNavigate();
   const [organizerName, setOrganizerName] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [activeEvents, setActiveEvents] = useState<any[]>([]);
