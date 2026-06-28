@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from "react";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { 
+  ArrowLeftIcon, 
+  CalendarIcon, 
+  MapPinIcon, 
+  ClockIcon, 
+  UsersIcon, 
+  CurrencyRupeeIcon 
+} from '@heroicons/react/24/outline';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getFirestore, doc, getDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -23,6 +31,7 @@ type CertificateStyle = "classic" | "modern" | "elegant" | "minimal";
 
 const EventDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [certificateStyle, setCertificateStyle] = useState<CertificateStyle>("elegant");
   const [certificateName, setCertificateName] = useState<string>("");
@@ -442,54 +451,131 @@ const EventDetails: React.FC = () => {
     day: 'numeric' 
   });
 
+  const formatEventDate = (dateStr: string) => {
+    if (!dateStr) return "";
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]} ${parts[1]} ${parts[0]}`;
+    }
+    return dateStr;
+  };
+
   const organizerName = organizerData?.name || (eventData?.organiser ? eventData.organiser.split('@')[0] : "Unknown Organizer");
 
   return (
-    <div className="p-4 flex flex-col items-center bg-white">
-      {eventData ? (
-        <>
-          <div className="bg-white max-w-md w-full p-6 rounded-lg mb-8">
-            <h1 className="text-3xl font-semibold text-black mb-2 text-center">{organizerName}</h1>
+    <div className="min-h-screen bg-[#e9f7f1] p-4 md:p-8 flex flex-col items-center font-sans">
+      <div className="w-full max-w-4xl mb-4">
+        <button 
+          onClick={() => navigate(-1)}
+          className="flex items-center text-gray-600 hover:text-[#246d8c] transition-colors font-medium bg-white px-4 py-2 rounded-full shadow-sm w-max"
+        >
+          <ArrowLeftIcon className="h-5 w-5 mr-2" />
+          Back
+        </button>
+      </div>
 
-            <div className="w-full h-70 rounded-lg overflow-hidden mb-4">
+      {eventData ? (
+        <div className="w-full max-w-4xl space-y-6">
+          {/* Main Event Card */}
+          <div className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row">
+            
+            {/* Left: Poster */}
+            <div className="w-full md:w-2/5 h-64 md:h-auto bg-gray-100 relative">
               <img 
                 src={eventData.poster} 
                 alt={eventData.name} 
-                className="object-cover w-full h-full" 
+                className="w-full h-full object-cover absolute inset-0"
               />
+              {isEventClosed && (
+                <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-md">
+                  Closed
+                </div>
+              )}
             </div>
 
-            <h2 className="text-2xl font-semibold">{eventData.name}</h2>
-
-            {isEventClosed && (
-              <div className="bg-red-100 text-red-800 p-2 rounded-md mb-4 text-center">
-                This event has been closed
+            {/* Right: Details */}
+            <div className="w-full md:w-3/5 p-6 md:p-8 flex flex-col">
+              <div className="mb-3 inline-flex items-center bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide w-max">
+                {organizerName}
               </div>
-            )}
+              
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6 leading-tight">
+                {eventData.name}
+              </h2>
 
-            <p className="text-[#246d8c] font-medium mb-4"><strong>Date:</strong> {eventData.event_date}</p>
-            <p className="text-[#246d8c] font-medium mb-4"><strong>Venue:</strong> {eventData.venue}</p>
-            <p className="text-[#246d8c] font-medium mb-4"><strong>Time:</strong> {eventData.event_time}</p>
-            <p className="text-[#246d8c] font-medium mb-4"><strong>Participants:</strong> {eventData.num_of_participants}</p>
-            {eventData.paymentEnabled && (
-              <p className="text-[#246d8c] font-medium mb-4">
-                <strong>Price:</strong> ₹{eventData.price}
-              </p>
-            )}
+              <div className="space-y-4 mb-8">
+                <div className="flex items-start">
+                  <CalendarIcon className="w-6 h-6 text-[#246d8c] mr-3 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-gray-500 font-medium">Date</p>
+                    <p className="text-gray-900 font-semibold">{formatEventDate(eventData.event_date)}</p>
+                  </div>
+                </div>
 
-            <p className="text-[#246d8c] font-medium mb-4"><strong>Description:</strong> </p>
-            <p className="text-gray-700 leading-relaxed mb-4">{eventData.description}</p>
+                <div className="flex items-start">
+                  <MapPinIcon className="w-6 h-6 text-[#246d8c] mr-3 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-gray-500 font-medium">Venue</p>
+                    <p className="text-gray-900 font-semibold">{eventData.venue}</p>
+                  </div>
+                </div>
 
-            <h3 className="text-xl font-medium mb-2">Coordinators</h3>
-            <div className="flex flex-col gap-2 mb-6">
-              <p className="text-gray-700">
-                <strong>Coordinator 1:</strong> {eventData.coordinator1 ? `${eventData.coordinator1.name} - ${eventData.coordinator1.phone}` : 'N/A'}
-              </p>
-              <p className="text-gray-700">
-                <strong>Coordinator 2:</strong> {eventData.coordinator2 ? `${eventData.coordinator2.name} - ${eventData.coordinator2.phone}` : 'N/A'}
-              </p>
+                <div className="flex items-start">
+                  <ClockIcon className="w-6 h-6 text-[#246d8c] mr-3 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-gray-500 font-medium">Time</p>
+                    <p className="text-gray-900 font-semibold">{eventData.event_time}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start">
+                  <UsersIcon className="w-6 h-6 text-[#246d8c] mr-3 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-gray-500 font-medium">Capacity</p>
+                    <p className="text-gray-900 font-semibold">{eventData.num_of_participants} Participants</p>
+                  </div>
+                </div>
+
+                {eventData.paymentEnabled && (
+                  <div className="flex items-start">
+                    <CurrencyRupeeIcon className="w-6 h-6 text-[#246d8c] mr-3 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-gray-500 font-medium">Price</p>
+                      <p className="text-gray-900 font-semibold text-lg text-green-700">₹{eventData.price}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {eventData.description && (
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">About this event</h3>
+                  <p className="text-gray-600 leading-relaxed">{eventData.description}</p>
+                </div>
+              )}
+
+              <div className="mt-auto">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3 uppercase tracking-wider">Event Coordinators</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {eventData.coordinator1 && (
+                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                      <p className="font-medium text-gray-900 text-sm">{eventData.coordinator1.name}</p>
+                      <p className="text-gray-500 text-sm">{eventData.coordinator1.phone}</p>
+                    </div>
+                  )}
+                  {eventData.coordinator2 && (
+                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                      <p className="font-medium text-gray-900 text-sm">{eventData.coordinator2.name}</p>
+                      <p className="text-gray-500 text-sm">{eventData.coordinator2.phone}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
+          </div>
 
+          {/* Registration & Feedback Sections wrapper */}
+          <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
             {/* Registration Status Section */}
 <div className="mb-6 border-t pt-4">
   {isRegistered ? (
@@ -888,9 +974,9 @@ const EventDetails: React.FC = () => {
               </div>
             </div>
           )}
-        </>
+        </div>
       ) : (
-        <p>No event details available</p>
+        <p className="text-gray-600 mt-12">No event details available</p>
       )}
     </div>
   );

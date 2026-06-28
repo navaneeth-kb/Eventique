@@ -83,7 +83,7 @@ const StudentLayout: React.FC = () => {
               className={`flex items-center w-full p-3 rounded-lg ${activeTab === 'tickets' ? 'bg-blue-100 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
             >
               <TicketIcon className="h-6 w-6 mr-3" />
-              <span className="font-medium">Tickets</span>
+              <span className="font-medium">Pass</span>
             </button>
           </li>
           <li>
@@ -92,7 +92,7 @@ const StudentLayout: React.FC = () => {
               className={`flex items-center w-full p-3 rounded-lg ${activeTab === 'months' ? 'bg-blue-100 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
             >
               <CalendarIcon className="h-6 w-6 mr-3" />
-              <span className="font-medium">Events</span>
+              <span className="font-medium">My Events</span>
             </button>
           </li>
           <li>
@@ -134,14 +134,14 @@ const StudentLayout: React.FC = () => {
         className={`flex flex-col items-center p-2 ${activeTab === 'tickets' ? 'text-blue-500' : 'text-gray-600'}`}
       >
         <TicketIcon className="h-6 w-6" />
-        <span className="text-xs mt-1">Tickets</span>
+        <span className="text-xs mt-1">Pass</span>
       </button>
       <button 
         onClick={() => handleTabClick('months')} 
         className={`flex flex-col items-center p-2 ${activeTab === 'months' ? 'text-blue-500' : 'text-gray-600'}`}
       >
         <CalendarIcon className="h-6 w-6" />
-        <span className="text-xs mt-1">Events</span>
+        <span className="text-xs mt-1">My Events</span>
       </button>
       <button 
         onClick={() => handleTabClick('profile')} 

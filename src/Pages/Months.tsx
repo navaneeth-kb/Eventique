@@ -88,9 +88,12 @@ const Calendar = () => {
   return (
     <div className="min-h-screen bg-[#e9f7f1] flex flex-col items-center p-4 pt-6">
       {/* Page Title */}
-      <h2 className="text-2xl font-bold text-[#246d8c] mb-5 tracking-wide">
+      <h2 className="text-2xl font-bold text-[#246d8c] mb-1 tracking-wide">
         My Calendar
       </h2>
+      <p className="text-sm text-gray-500 mb-5 text-center px-4">
+        Only registered events are marked in the calendar.
+      </p>
 
       <div className="w-full max-w-md">
         {/* Calendar Card */}
@@ -127,14 +130,12 @@ const Calendar = () => {
               <div className="p-4 grid grid-cols-3 gap-3">
                 {months.map((month, index) => {
                   const monthStart = new Date(currentDate.getFullYear(), index, 1);
-                  const monthEnd = endOfMonth(monthStart);
-                  const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
                   const isCurrentMonth = index === new Date().getMonth() && currentDate.getFullYear() === new Date().getFullYear();
 
                   return (
                     <div 
                       key={month} 
-                      className={`p-3 text-center rounded-xl cursor-pointer transition-all duration-200
+                      className={`p-4 text-center rounded-xl cursor-pointer transition-all duration-200 flex items-center justify-center
                         ${isCurrentMonth 
                           ? 'bg-[#246d8c] text-white shadow-md' 
                           : 'bg-[#f6fcf7] hover:bg-[#e9f7f1] text-gray-700'
@@ -148,17 +149,7 @@ const Calendar = () => {
                       aria-label={`Select ${month}`}
                       tabIndex={0}
                     >
-                      <div className="font-semibold text-sm">{month.substring(0, 3)}</div>
-                      <div className="grid grid-cols-7 text-xs gap-0.5 mt-1.5">
-                        {monthDays.slice(0, 14).map((day) => (
-                          <span 
-                            key={day.toString()} 
-                            className={isCurrentMonth ? 'text-white/60' : 'text-gray-400'}
-                          >
-                            {format(day, "d")}
-                          </span>
-                        ))}
-                      </div>
+                      <div className="font-semibold text-base">{month.substring(0, 3)}</div>
                     </div>
                   );
                 })}
