@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { HomeIcon, TicketIcon, CalendarIcon, UserIcon } from '@heroicons/react/24/outline';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import logo from '../assets/logo.svg';
 
 /**
  * Persistent layout wrapper for student-facing pages.
@@ -63,7 +64,8 @@ const StudentLayout: React.FC = () => {
 
   const renderDesktopNavigation = () => (
     <div className="w-64 h-screen bg-white border-r border-gray-200 fixed left-0 top-0 p-6 flex flex-col z-50">
-      <div className="mb-8">
+      <div className="mb-8 flex items-center gap-3">
+        <img src={logo} alt="Eventique Logo" className="h-8 w-auto" />
         <h1 className="text-2xl font-bold text-blue-600">Eventique</h1>
       </div>
       <nav className="flex-1">
@@ -156,6 +158,13 @@ const StudentLayout: React.FC = () => {
   return (
     <div className="w-full h-screen flex flex-col bg-[#f6fcf7]">
       {isDesktop && renderDesktopNavigation()}
+      
+      {!isDesktop && (
+        <div className="bg-white border-b border-gray-200 h-14 flex items-center px-4 shrink-0 z-40 sticky top-0">
+          <img src={logo} alt="Eventique Logo" className="h-6 w-auto mr-2" />
+          <h1 className="text-lg font-bold text-blue-600">Eventique</h1>
+        </div>
+      )}
 
       <div className={`flex-1 w-full overflow-y-auto ${isDesktop ? 'ml-64' : 'pb-16'}`}>
         <Outlet />

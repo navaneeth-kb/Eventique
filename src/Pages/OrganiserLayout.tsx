@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { HomeIcon, PlusIcon, CalendarIcon, UserIcon } from '@heroicons/react/24/outline';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import logo from '../assets/logo.svg';
 
 /**
  * Persistent layout wrapper for organiser-facing pages.
@@ -63,9 +64,12 @@ const OrganiserLayout: React.FC = () => {
 
   const renderDesktopNavigation = () => (
     <div className="w-64 h-screen bg-white border-r border-gray-200 fixed left-0 top-0 p-6 flex flex-col z-50">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-[#246D8C]">Eventique</h1>
-        <p className="text-xs text-gray-500 uppercase tracking-widest mt-1 font-semibold">Organiser</p>
+      <div className="mb-8 flex items-start gap-3">
+        <img src={logo} alt="Eventique Logo" className="h-8 w-auto mt-0.5" />
+        <div>
+          <h1 className="text-2xl font-bold text-[#246D8C] leading-none">Eventique</h1>
+          <p className="text-xs text-gray-500 uppercase tracking-widest mt-1 font-semibold">Organiser</p>
+        </div>
       </div>
       <nav className="flex-1">
         <ul className="space-y-2">
@@ -157,6 +161,16 @@ const OrganiserLayout: React.FC = () => {
   return (
     <div className="w-full h-screen flex flex-col bg-[#f6fcf7]">
       {isDesktop && renderDesktopNavigation()}
+      
+      {!isDesktop && (
+        <div className="bg-white border-b border-gray-200 h-14 flex items-center px-4 shrink-0 z-40 sticky top-0">
+          <img src={logo} alt="Eventique Logo" className="h-6 w-auto mr-2" />
+          <div className="flex flex-col justify-center">
+            <h1 className="text-lg font-bold text-[#246D8C] leading-none">Eventique</h1>
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5 font-semibold">Organiser</p>
+          </div>
+        </div>
+      )}
 
       <div className={`flex-1 w-full overflow-y-auto ${isDesktop ? 'ml-64' : 'pb-16'}`}>
         <Outlet />
