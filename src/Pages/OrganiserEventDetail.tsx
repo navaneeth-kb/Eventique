@@ -38,16 +38,20 @@ const OrganiserEventDetail = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
   const [showReportForm, setShowReportForm] = useState(false);
-  const [reportDetails, setReportDetails] = useState({
-    speakers: '',
-    advisors: '',
-    photo: null as File | null,
-    photoPreview: '',
-    sessionDetails: '',
-    keyTakeaways: ''
-  });
-  const [generatedReport, setGeneratedReport] = useState('');
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [reportReady, setReportReady] = useState(false);
+
+  // Report form state — all manually entered by the secretary
+  const [reportPhoto, setReportPhoto] = useState<File | null>(null);
+  const [reportPhotoPreview, setReportPhotoPreview] = useState('');
+  const [reportDateWithTime, setReportDateWithTime] = useState('');
+  const [reportVenue, setReportVenue] = useState('');
+  const [reportParticipants, setReportParticipants] = useState('');
+  const [reportFacultyIncharges, setReportFacultyIncharges] = useState('');
+  const [hasSpeaker, setHasSpeaker] = useState(false);
+  const [speakers, setSpeakers] = useState<{ name: string; designation: string }[]>([]);
+  const [reportOverview, setReportOverview] = useState('');
+  const [reportConclusion, setReportConclusion] = useState('');
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -83,6 +87,16 @@ const OrganiserEventDetail = () => {
       setLoading(false);
     }
   }, [id]);
+
+  // Pre-fill some fields from event data when the report form is opened
+  useEffect(() => {
+    if (showReportForm && eventData) {
+      setReportDateWithTime(
+        `${eventData.event_date || ''}${eventData.event_time ? ' (' + eventData.event_time + ')' : ''}`
+      );
+      setReportVenue(eventData.venue || '');
+    }
+  }, [showReportForm, eventData]);
 
   const handleDelete = async () => {
     if (!id) return;
@@ -148,134 +162,49 @@ const OrganiserEventDetail = () => {
     }
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleReportPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setReportDetails({
-        ...reportDetails,
-        photo: file,
-        photoPreview: URL.createObjectURL(file)
-      });
+      setReportPhoto(file);
+      setReportPhotoPreview(URL.createObjectURL(file));
     }
   };
 
-  const generateReportWithAI = async () => {
-    if (!eventData) return;
-
-    setIsGeneratingReport(true);
-
-    try {
-      const GEMINI_API_KEY = "#";
-      const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-      const prompt = `Generate a professional event report for "${eventData.name}" with the following format:
-
-**Event Overview**
-[Provide a comprehensive overview including date, venue, organizers, and purpose]
-
-**Event Details**
-* Speakers
-● ${reportDetails.speakers || 'Not specified'}
-* Advisors
-● ${reportDetails.advisors || 'Not specified'}
-* Participants
-● ${eventData.num_of_participants || 'Several'} attendees
-
-**Session Highlights**
-${reportDetails.sessionDetails || 'No session details provided'}
-
-**Key Takeaways**
-${reportDetails.keyTakeaways || 'None recorded'}
-
-**Conclusion**
-[Provide a concluding statement about the event's success]
-
-Additional instructions:
-- Use **double asterisks** for section headings
-- Use *single asterisk* for subheadings
-- Use ● bullet points for lists
-- Keep paragraphs concise and professional
-- Include all provided information in the appropriate sections`;
-
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: prompt
-            }]
-          }],
-          safetySettings: [
-            {
-              category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-              threshold: "BLOCK_NONE"
-            }
-          ],
-          generationConfig: {
-            temperature: 0.5,
-            topP: 0.95,
-            topK: 40
-          }
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('API Error Details:', errorData);
-        throw new Error(errorData.error?.message || 'Failed to generate report');
-      }
-
-      const data = await response.json();
-      const reportContent = data.candidates?.[0]?.content?.parts?.[0]?.text
-        || "Could not generate report content";
-
-      setGeneratedReport(reportContent);
-      setShowReportForm(false);
-
-    } catch (error) {
-      console.error('API Call Failed:', error);
-      generateFallbackReport();
-      setShowReportForm(false);
-      alert("AI report generation is currently unavailable (rate limit reached). A basic structured report has been generated instead.");
-    } finally {
-      setIsGeneratingReport(false);
-    }
+  const addSpeaker = () => {
+    setSpeakers([...speakers, { name: '', designation: '' }]);
   };
 
-  const generateFallbackReport = () => {
-    if (!eventData) return;
+  const removeSpeaker = (index: number) => {
+    setSpeakers(speakers.filter((_, i) => i !== index));
+  };
 
-    const fallbackReport = `
-**Event Overview**
-${eventData.name} was held on ${eventData.event_date} at ${eventData.venue}. 
-The event was organized by ${eventData.organiser}.
+  const updateSpeaker = (index: number, field: 'name' | 'designation', value: string) => {
+    const updated = [...speakers];
+    updated[index][field] = value;
+    setSpeakers(updated);
+  };
 
-**Event Details**
-* Speakers
-● ${reportDetails.speakers || 'Not specified'}
-* Advisors
-● ${reportDetails.advisors || 'Not specified'}
-* Participants
-● ${eventData.num_of_participants || 'Several'} attendees
+  const handleGenerateReport = () => {
+    // Validate required fields
+    if (!reportDateWithTime.trim()) return alert('Please enter the date and time.');
+    if (!reportVenue.trim()) return alert('Please enter the venue.');
+    if (!reportParticipants.trim()) return alert('Please enter participant details.');
+    if (!reportFacultyIncharges.trim()) return alert('Please enter faculty incharges.');
+    if (!reportOverview.trim()) return alert('Please write the event overview.');
+    if (!reportConclusion.trim()) return alert('Please write the conclusion.');
+    if (hasSpeaker && speakers.length === 0) return alert('Please add at least one speaker or turn off the speaker toggle.');
+    if (hasSpeaker && speakers.some(s => !s.name.trim() || !s.designation.trim())) {
+      return alert('Please fill in all speaker names and designations.');
+    }
 
-**Session Highlights**
-${reportDetails.sessionDetails || 'No session details provided'}
-
-**Key Takeaways**
-${reportDetails.keyTakeaways || 'None recorded'}
-
-**Conclusion**
-The event concluded successfully with participation from attendees.
-    `;
-
-    setGeneratedReport(fallbackReport);
+    setReportReady(true);
+    setShowReportForm(false);
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(generatedReport);
+    // Generate text version for clipboard
+    const textReport = `Event Report: ${eventData?.name}\n\nOverview: ${reportOverview}\n\nVenue: ${reportVenue}\nDate/Time: ${reportDateWithTime}\nParticipants: ${reportParticipants}\nFaculty: ${reportFacultyIncharges}\n${hasSpeaker ? 'Speakers: ' + speakers.map(s => `${s.name} (${s.designation})`).join(', ') : ''}\n\nConclusion: ${reportConclusion}`;
+    navigator.clipboard.writeText(textReport);
     alert('Report copied to clipboard!');
   };
 
@@ -283,131 +212,130 @@ The event concluded successfully with participation from attendees.
     if (!eventData) return;
 
     const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const margin = 25;
+    const contentWidth = pageWidth - margin * 2;
 
-    // Set document properties
     pdf.setProperties({
-      title: `${eventData.name} Event Report`,
+      title: `Event Report: ${eventData.name}`,
       subject: 'Event Report',
       author: eventData.organiser,
-      keywords: 'event, report, ' + eventData.name,
-      creator: 'Event Management System'
+      creator: 'Eventique'
     });
 
-    // Add title
-    pdf.setFontSize(22);
-    pdf.setTextColor(0, 51, 102);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(eventData.name.toUpperCase(), 105, 20, { align: 'center' });
-
-    // Add subtitle
-    pdf.setFontSize(14);
+    // --- Title ---
+    pdf.setFontSize(18);
     pdf.setTextColor(0, 0, 0);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`Event Report - ${eventData.event_date}`, 105, 30, { align: 'center' });
+    pdf.setFont('helvetica', 'bold');
+    const titleLines = pdf.splitTextToSize(`Event Report: ${eventData.name}`, contentWidth);
+    pdf.text(titleLines, pageWidth / 2, 25, { align: 'center' });
+    let y = 25 + titleLines.length * 9;
 
-    // Add horizontal line
-    pdf.setDrawColor(0, 51, 102);
-    pdf.setLineWidth(0.5);
-    pdf.line(20, 35, 190, 35);
-
-    let yPosition = 45;
-
-    // Add geotagged photo if available
-    if (reportDetails.photoPreview) {
+    // --- Geotagged Photo ---
+    if (reportPhotoPreview) {
       try {
-        // Convert image URL to data URL
-        const dataUrl = await getBase64ImageFromUrl(reportDetails.photoPreview);
-
-        // Add image to PDF
+        const dataUrl = await getBase64ImageFromUrl(reportPhotoPreview);
         const imgProps = pdf.getImageProperties(dataUrl);
-        const pdfWidth = pdf.internal.pageSize.getWidth() - 40;
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-        pdf.addImage(dataUrl, 'JPEG', 20, yPosition, pdfWidth, pdfHeight);
-        yPosition += pdfHeight + 10;
-
-        // Add photo caption
-        pdf.setFontSize(10);
-        pdf.setTextColor(100, 100, 100);
-        pdf.text('Geotagged Event Photo', 105, yPosition, { align: 'center' });
-        yPosition += 8;
-      } catch (error) {
-        console.error('Error adding image to PDF:', error);
-        pdf.text('[Geotagged Event Photo]', 20, yPosition);
-        yPosition += 10;
+        const imgWidth = contentWidth * 0.7;
+        const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+        const imgX = (pageWidth - imgWidth) / 2;
+        y += 5;
+        pdf.addImage(dataUrl, 'JPEG', imgX, y, imgWidth, imgHeight);
+        y += imgHeight + 10;
+      } catch (err) {
+        console.error('Error adding photo to PDF:', err);
       }
     }
 
-    // Clean and format the generated report
-    const formattedReport = generatedReport
-      .replace(/\* \*Speakers\*\s*\n%Ï/g, '• Speakers: ')
-      .replace(/\* \*Advisors\*\s*\n%Ï/g, '• Advisors: ')
-      .replace(/\* \*Participants\*\s*\n%Ï/g, '• Participants: ')
-      .replace(/\*\*/g, ''); // Remove any remaining double asterisks
+    // Helper to check page overflow
+    const checkPage = (needed: number) => {
+      if (y + needed > 275) { pdf.addPage(); y = 20; }
+    };
 
-    // Process each line
-    const lines = formattedReport.split('\n');
-
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (!trimmedLine) {
-        yPosition += 5;
-        continue;
-      }
-
-      // Handle section headings (lines that look like headings)
-      if (trimmedLine.match(/^[A-Z][a-z]+( [A-Z][a-z]+)*$/)) {
-        if (yPosition > 270) {
-          pdf.addPage();
-          yPosition = 20;
-        }
-        pdf.setFontSize(16);
-        pdf.setTextColor(0, 51, 102);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(trimmedLine, 14, yPosition);
-        yPosition += 10;
-        continue;
-      }
-
-      // Handle bullet points (lines starting with •)
-      if (trimmedLine.startsWith('•')) {
-        if (yPosition > 270) {
-          pdf.addPage();
-          yPosition = 20;
-        }
-        pdf.setFontSize(12);
-        pdf.setTextColor(0, 0, 0);
-        pdf.setFont('helvetica', 'normal');
-
-        // Split bullet text if it's too long
-        const bulletText = trimmedLine;
-        const splitLines = pdf.splitTextToSize(bulletText, 170);
-
-        pdf.text(splitLines, 20, yPosition);
-        yPosition += 7 * splitLines.length;
-        continue;
-      }
-
-      // Normal text
-      if (yPosition > 270) {
-        pdf.addPage();
-        yPosition = 20;
-      }
-      pdf.setFontSize(12);
+    // --- Details Table ---
+    const addLabelValue = (label: string, value: string) => {
+      checkPage(12);
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(0, 0, 0);
+      pdf.text(`${label}:`, margin, y);
       pdf.setFont('helvetica', 'normal');
+      const valLines = pdf.splitTextToSize(value, contentWidth - 65);
+      pdf.text(valLines, margin + 60, y);
+      y += Math.max(valLines.length * 6, 8);
+    };
 
-      const splitLines = pdf.splitTextToSize(trimmedLine, 180);
-      pdf.text(splitLines, 14, yPosition);
-      yPosition += 7 * splitLines.length;
+    y += 5;
+    addLabelValue('DATE', reportDateWithTime);
+    y += 3;
+    addLabelValue('VENUE', reportVenue);
+    y += 3;
+    addLabelValue('TOTAL PARTICIPANTS', reportParticipants);
+    y += 3;
+    addLabelValue('FACULTY INCHARGES', reportFacultyIncharges);
+
+    if (hasSpeaker && speakers.length > 0) {
+      y += 3;
+      speakers.forEach((speaker, idx) => {
+        addLabelValue(speakers.length === 1 ? 'RESOURCE PERSON' : `RESOURCE PERSON ${idx + 1}`, speaker.name);
+        checkPage(8);
+        pdf.setFont('helvetica', 'italic');
+        pdf.setFontSize(10);
+        pdf.text(`(${speaker.designation})`, margin + 60, y);
+        y += 8;
+      });
     }
 
-    // Add footer
-    pdf.setFontSize(10);
-    pdf.setTextColor(100, 100, 100);
-    pdf.text(`Generated on ${new Date().toLocaleDateString()}`, 105, 285, { align: 'center' });
+    // --- Horizontal line ---
+    y += 5;
+    checkPage(10);
+    pdf.setDrawColor(180, 180, 180);
+    pdf.setLineWidth(0.3);
+    pdf.line(margin, y, pageWidth - margin, y);
+    y += 10;
 
-    pdf.save(`${eventData.name.replace(/[^a-z0-9]/gi, '_')}_report.pdf`);
+    // --- EVENT OVERVIEW ---
+    checkPage(15);
+    pdf.setFontSize(13);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(0, 0, 0);
+    pdf.text('EVENT OVERVIEW:', margin, y);
+    y += 10;
+
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'normal');
+    const overviewParagraphs = reportOverview.split('\n').filter(p => p.trim());
+    for (const para of overviewParagraphs) {
+      const paraLines = pdf.splitTextToSize(para.trim(), contentWidth);
+      checkPage(paraLines.length * 6 + 5);
+      pdf.text(paraLines, margin, y);
+      y += paraLines.length * 6 + 5;
+    }
+
+    // --- CONCLUSION ---
+    y += 5;
+    checkPage(15);
+    pdf.setFontSize(13);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('CONCLUSION:', margin, y);
+    y += 10;
+
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'normal');
+    const conclusionParagraphs = reportConclusion.split('\n').filter(p => p.trim());
+    for (const para of conclusionParagraphs) {
+      const paraLines = pdf.splitTextToSize(para.trim(), contentWidth);
+      checkPage(paraLines.length * 6 + 5);
+      pdf.text(paraLines, margin, y);
+      y += paraLines.length * 6 + 5;
+    }
+
+    // --- Footer ---
+    pdf.setFontSize(9);
+    pdf.setTextColor(150, 150, 150);
+    pdf.text(`Generated via Eventique on ${new Date().toLocaleDateString()}`, pageWidth / 2, 290, { align: 'center' });
+
+    pdf.save(`${eventData.name.replace(/[^a-z0-9]/gi, '_')}_Event_Report.pdf`);
   };
 
   // Helper function to convert image URL to base64
@@ -585,185 +513,160 @@ The event concluded successfully with participation from attendees.
             {/* Report Generation Form */}
             {showReportForm && (
               <div className="mt-8 bg-gray-50 p-6 rounded-lg border border-gray-200">
-                <h2 className="text-xl font-bold mb-4 text-gray-800">Generate Event Report</h2>
+                <h2 className="text-xl font-bold mb-6 text-gray-800">Create Event Report</h2>
+                <p className="text-sm text-gray-500 mb-6">Fill in all the details below. This will be used to generate the official event report PDF.</p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  <div className="space-y-2">
-                    <h3 className="font-medium text-gray-700">Event Details</h3>
-                    <div className="bg-white p-4 rounded-md border border-gray-200">
-                      <p><span className="font-medium">Name:</span> {eventData.name}</p>
-                      <p><span className="font-medium">Date:</span> {eventData.event_date}</p>
-                      <p><span className="font-medium">Time:</span> {eventData.event_time || 'Not specified'}</p>
-                      <p><span className="font-medium">Venue:</span> {eventData.venue}</p>
-                      <p><span className="font-medium">Organizer:</span> {eventData.organiser}</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <h3 className="font-medium text-gray-700">Attendance</h3>
-                    <div className="bg-white p-4 rounded-md border border-gray-200">
-                      <p><span className="font-medium">Participants:</span> {eventData.num_of_participants || 'Not specified'}</p>
-                      {eventData.coordinators && (
-                        <p><span className="font-medium">Coordinators:</span> {eventData.coordinators.map(c => c.name).join(', ')}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Speakers (comma separated)</label>
-                    <input
-                      type="text"
-                      value={reportDetails.speakers}
-                      onChange={(e) => setReportDetails({ ...reportDetails, speakers: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Dr. Bindu Krishnan, Ms Sangeetha Tony"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Advisors In Charge (comma separated)</label>
-                    <input
-                      type="text"
-                      value={reportDetails.advisors}
-                      onChange={(e) => setReportDetails({ ...reportDetails, advisors: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Dr. Preetha K.G, Mrs. Jisha Mary Jose"
-                    />
-                  </div>
-
+                <div className="space-y-5">
+                  {/* Geotagged Photo */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Event Photo (Geotagged)</label>
-                    {reportDetails.photoPreview ? (
+                    {reportPhotoPreview ? (
                       <div className="relative mb-2">
-                        <img
-                          src={reportDetails.photoPreview}
-                          alt="Event photo preview"
-                          className="w-full h-auto max-h-48 object-contain border border-gray-200 rounded"
-                        />
-                        <button
-                          onClick={() => setReportDetails({ ...reportDetails, photo: null, photoPreview: '' })}
-                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
-                          aria-label="Remove photo"
-                        >
-                          ×
-                        </button>
+                        <img src={reportPhotoPreview} alt="Event photo" className="w-full h-auto max-h-48 object-contain border border-gray-200 rounded" />
+                        <button onClick={() => { setReportPhoto(null); setReportPhotoPreview(''); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center" aria-label="Remove photo">×</button>
                       </div>
                     ) : (
-                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-white hover:bg-gray-50">
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                            <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2" />
-                          </svg>
-                          <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                          <p className="text-xs text-gray-500">PNG, JPG (MAX. 5MB)</p>
+                          <svg className="w-8 h-8 mb-2 text-gray-400" fill="none" viewBox="0 0 20 16"><path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/></svg>
+                          <p className="text-sm text-gray-500"><span className="font-semibold">Click to upload</span> geotagged photo</p>
                         </div>
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept="image/*"
-                          onChange={handlePhotoChange}
-                          aria-label="Upload event photo"
-                        />
+                        <input type="file" className="hidden" accept="image/*" onChange={handleReportPhotoChange} />
                       </label>
                     )}
                   </div>
 
+                  {/* Date with Time */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Session Details</label>
-                    <textarea
-                      value={reportDetails.sessionDetails}
-                      onChange={(e) => setReportDetails({ ...reportDetails, sessionDetails: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      rows={4}
-                      placeholder="● Session 1: Supervised Learning & Decision Trees..."
-                    />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
+                    <input type="text" value={reportDateWithTime} onChange={(e) => setReportDateWithTime(e.target.value)} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-[#246d8c] focus:border-[#246d8c]" placeholder="e.g. 6th February, 2026 (11:40 am – 12:40 pm)" required />
                   </div>
 
+                  {/* Venue */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Key Takeaways</label>
-                    <textarea
-                      value={reportDetails.keyTakeaways}
-                      onChange={(e) => setReportDetails({ ...reportDetails, keyTakeaways: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      rows={4}
-                      placeholder="Fundamentals of Supervised Learning..."
-                    />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Venue</label>
+                    <input type="text" value={reportVenue} onChange={(e) => setReportVenue(e.target.value)} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-[#246d8c] focus:border-[#246d8c]" placeholder="e.g. Gallery Hall" required />
                   </div>
 
+                  {/* Total Participants */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Total Participants</label>
+                    <textarea value={reportParticipants} onChange={(e) => setReportParticipants(e.target.value)} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-[#246d8c] focus:border-[#246d8c]" rows={2} placeholder="e.g. HOD (Dep of CS) - Dr. Preetha KG, All Students from 3rd and 4th year and faculties of CS department" required />
+                  </div>
+
+                  {/* Faculty Incharges */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Faculty Incharges</label>
+                    <input type="text" value={reportFacultyIncharges} onChange={(e) => setReportFacultyIncharges(e.target.value)} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-[#246d8c] focus:border-[#246d8c]" placeholder="e.g. Ms. Jisha Mary Jose, Dr. Preetha K.G" required />
+                  </div>
+
+                  {/* Speaker Toggle */}
+                  <div className="bg-white p-4 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium text-gray-800">Resource Person / Speaker</div>
+                        <div className="text-sm text-gray-500">Toggle on if the event had a speaker</div>
+                      </div>
+                      <button type="button" onClick={() => { setHasSpeaker(!hasSpeaker); if (!hasSpeaker && speakers.length === 0) addSpeaker(); }} className={`relative inline-flex items-center h-7 rounded-full w-12 transition-colors focus:outline-none ${hasSpeaker ? 'bg-[#246d8c]' : 'bg-gray-300'}`}>
+                        <span className={`${hasSpeaker ? 'translate-x-6' : 'translate-x-1'} inline-block w-5 h-5 transform bg-white rounded-full transition-transform shadow-sm`} />
+                      </button>
+                    </div>
+
+                    {hasSpeaker && (
+                      <div className="mt-4 space-y-3">
+                        {speakers.map((speaker, index) => (
+                          <div key={index} className="flex flex-col sm:flex-row gap-2 p-3 bg-gray-50 rounded-md border border-gray-100">
+                            <div className="flex-1">
+                              <input type="text" value={speaker.name} onChange={(e) => updateSpeaker(index, 'name', e.target.value)} className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-[#246d8c]" placeholder="Speaker Name" />
+                            </div>
+                            <div className="flex-1">
+                              <input type="text" value={speaker.designation} onChange={(e) => updateSpeaker(index, 'designation', e.target.value)} className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-[#246d8c]" placeholder="Designation (e.g. Career Expert, Senior BDM)" />
+                            </div>
+                            {speakers.length > 1 && (
+                              <button onClick={() => removeSpeaker(index)} className="text-red-500 hover:text-red-700 text-sm font-medium px-2 self-center">Remove</button>
+                            )}
+                          </div>
+                        ))}
+                        <button onClick={addSpeaker} className="text-[#246d8c] hover:text-[#1a4f63] text-sm font-medium">+ Add another speaker</button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Event Overview */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Event Overview</label>
+                    <p className="text-xs text-gray-400 mb-1">Write a detailed overview of the event. Use multiple paragraphs as needed.</p>
+                    <textarea value={reportOverview} onChange={(e) => setReportOverview(e.target.value)} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-[#246d8c] focus:border-[#246d8c]" rows={8} placeholder="The Department of Computer Science organized a career guidance session titled..." required />
+                  </div>
+
+                  {/* Conclusion */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Conclusion</label>
+                    <textarea value={reportConclusion} onChange={(e) => setReportConclusion(e.target.value)} className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-[#246d8c] focus:border-[#246d8c]" rows={4} placeholder="The event offered students a clear understanding of..." required />
+                  </div>
+
+                  {/* Actions */}
                   <div className="flex justify-end gap-3 pt-2">
-                    <button
-                      onClick={() => setShowReportForm(false)}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
-                      aria-label="Cancel report generation"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={generateReportWithAI}
-                      disabled={isGeneratingReport}
-                      className={`px-4 py-2 rounded-md text-white flex items-center gap-2 ${isGeneratingReport ? 'bg-purple-500' : 'bg-purple-600 hover:bg-purple-700'
-                        } transition-colors`}
-                      aria-label={isGeneratingReport ? "Generating report" : "Generate report"}
-                    >
-                      {isGeneratingReport ? (
-                        <>
-                          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <DocumentTextIcon className="h-5 w-5" />
-                          Generate Report
-                        </>
-                      )}
+                    <button onClick={() => setShowReportForm(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition-colors">Cancel</button>
+                    <button onClick={handleGenerateReport} className="px-6 py-2 rounded-md text-white bg-[#246d8c] hover:bg-[#1a4f63] transition-colors flex items-center gap-2">
+                      <DocumentTextIcon className="h-5 w-5" />
+                      Preview & Download
                     </button>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Generated Report Display */}
-            {generatedReport && (
+            {/* Report Preview & Download */}
+            {reportReady && (
               <div className="mt-8 bg-white p-6 rounded-lg border border-gray-200">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-gray-800">Event Report</h2>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={copyToClipboard}
-                      className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
-                      aria-label="Copy report to clipboard"
-                    >
-                      <ClipboardDocumentIcon className="h-5 w-5" />
-                      Copy
+                  <h2 className="text-xl font-bold text-gray-800">Event Report Preview</h2>
+                  <div className="flex gap-3">
+                    <button onClick={copyToClipboard} className="flex items-center gap-1 text-[#246d8c] hover:text-[#1a4f63] text-sm font-medium">
+                      <ClipboardDocumentIcon className="h-5 w-5" /> Copy Text
                     </button>
-                    <button
-                      onClick={downloadPDF}
-                      className="flex items-center gap-1 text-green-600 hover:text-green-800"
-                      aria-label="Download report as PDF"
-                    >
-                      <ArrowDownTrayIcon className="h-5 w-5" />
-                      PDF
+                    <button onClick={downloadPDF} className="flex items-center gap-1 bg-[#246d8c] text-white px-4 py-2 rounded-lg hover:bg-[#1a4f63] text-sm font-medium">
+                      <ArrowDownTrayIcon className="h-5 w-5" /> Download PDF
                     </button>
                   </div>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-md overflow-auto max-h-96">
-                  {reportDetails.photoPreview && (
-                    <div className="mb-4 flex justify-center">
-                      <img
-                        src={reportDetails.photoPreview}
-                        alt="Event photo"
-                        className="max-h-60 rounded-lg border border-gray-200"
-                      />
-                    </div>
+
+                <div className="bg-gray-50 p-6 rounded-md border border-gray-100 space-y-4">
+                  <h3 className="text-lg font-bold text-center">Event Report: {eventData.name}</h3>
+
+                  {reportPhotoPreview && (
+                    <div className="flex justify-center"><img src={reportPhotoPreview} alt="Event" className="max-h-52 rounded-md border border-gray-200" /></div>
                   )}
-                  <pre className="whitespace-pre-wrap font-sans text-gray-800">
-                    {generatedReport}
-                  </pre>
+
+                  <div className="space-y-2 text-sm">
+                    <div className="flex"><span className="font-semibold w-44 shrink-0">DATE:</span><span>{reportDateWithTime}</span></div>
+                    <div className="flex"><span className="font-semibold w-44 shrink-0">VENUE:</span><span>{reportVenue}</span></div>
+                    <div className="flex"><span className="font-semibold w-44 shrink-0">TOTAL PARTICIPANTS:</span><span>{reportParticipants}</span></div>
+                    <div className="flex"><span className="font-semibold w-44 shrink-0">FACULTY INCHARGES:</span><span>{reportFacultyIncharges}</span></div>
+                    {hasSpeaker && speakers.map((s, i) => (
+                      <div key={i} className="flex flex-col">
+                        <div className="flex"><span className="font-semibold w-44 shrink-0">{speakers.length === 1 ? 'RESOURCE PERSON:' : `RESOURCE PERSON ${i+1}:`}</span><span>{s.name}</span></div>
+                        <div className="flex"><span className="w-44 shrink-0"></span><span className="italic text-gray-500">({s.designation})</span></div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <hr className="border-gray-200" />
+
+                  <div>
+                    <h4 className="font-bold text-sm mb-2">EVENT OVERVIEW:</h4>
+                    <div className="text-sm text-gray-700 whitespace-pre-wrap">{reportOverview}</div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-bold text-sm mb-2">CONCLUSION:</h4>
+                    <div className="text-sm text-gray-700 whitespace-pre-wrap">{reportConclusion}</div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex justify-end">
+                  <button onClick={() => { setReportReady(false); setShowReportForm(true); }} className="text-sm text-[#246d8c] hover:underline">← Edit Report</button>
                 </div>
               </div>
             )}
