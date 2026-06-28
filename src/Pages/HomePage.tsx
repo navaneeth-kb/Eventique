@@ -10,13 +10,15 @@ const db = getFirestore();
 
 const HomePage: React.FC = () => {
   const [userName, setUserName] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [currentEvents, setCurrentEvents] = useState<any[]>([]);
+  const [registeredEvents, setRegisteredEvents] = useState<any[]>([]);
   const [pastEvents, setPastEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [activeEventTab, setActiveEventTab] = useState<'current' | 'past'>('current');
+  const [activeEventTab, setActiveEventTab] = useState<'current' | 'registered' | 'past'>('current');
   const location = useLocation();
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 768);
 
@@ -29,7 +31,7 @@ const HomePage: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const fetchEvents = async () => {
+  const fetchEvents = async (email: string | null) => {
     try {
       const querySnapshot = await getDocs(collection(db, 'event'));
 
@@ -45,21 +47,37 @@ const HomePage: React.FC = () => {
         const eventDate = data['Event Date'] ? new Date(data['Event Date']) : null;
         const formattedDate = eventDate ? format(eventDate, 'dd-MM-yyyy') : 'N/A';
         const isClosed = data.status === 'closed';
+        
+        let userAttended = false;
+        if (email && data.attendees) {
+          userAttended = data.attendees.some((attendee: any) => 
+            attendee.email === email || attendee.email === `"${email}"`
+          );
+        }
+
+        let isRegistered = false;
+        if (email && data.Participants) {
+          isRegistered = data.Participants.includes(email) || data.Participants.includes(`"${email}"`);
+        }
 
         return {
           id: eventId,
           ...data,
           Event_Date: formattedDate,
           rawDate: eventDate,
-          isClosed
+          isClosed,
+          userAttended,
+          isRegistered
         };
       });
 
       const current = eventsData.filter(event => !event.isClosed);
-      const past = eventsData.filter(event => event.isClosed);
+      const registered = eventsData.filter(event => !event.isClosed && event.isRegistered);
+      const past = eventsData.filter(event => event.isClosed && event.userAttended);
 
       setEvents(eventsData);
       setCurrentEvents(current);
+      setRegisteredEvents(registered);
       setPastEvents(past);
     } catch (error) {
       console.error('Error fetching events:', error);
@@ -74,15 +92,20 @@ const HomePage: React.FC = () => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUserName(user.displayName);
+        setUserEmail(user.email);
+        fetchEvents(user.email);
       } else {
         setUserName('Guest');
+        setUserEmail(null);
+        fetchEvents(null);
       }
     });
 
-    fetchEvents();
-
     if (location.state?.shouldRefresh) {
-      fetchEvents();
+      // Note: If shouldRefresh is true, the auth state change will fetch events anyway, 
+      // but if we want to force refresh without auth change:
+      const currentUser = auth.currentUser;
+      fetchEvents(currentUser?.email || null);
       window.history.replaceState({}, document.title);
     }
 
@@ -100,8 +123,10 @@ const HomePage: React.FC = () => {
 
     if (activeEventTab === 'current') {
       setCurrentEvents(filterEvents(events.filter(event => !event.isClosed)));
+    } else if (activeEventTab === 'registered') {
+      setRegisteredEvents(filterEvents(events.filter(event => !event.isClosed && event.isRegistered)));
     } else {
-      setPastEvents(filterEvents(events.filter(event => event.isClosed)));
+      setPastEvents(filterEvents(events.filter(event => event.isClosed && event.userAttended)));
     }
   }, [searchQuery, events, activeEventTab]);
 
@@ -158,6 +183,12 @@ const HomePage: React.FC = () => {
               Current Events
             </button>
             <button
+              className={`py-2 px-6 font-medium ${activeEventTab === 'registered' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveEventTab('registered')}
+            >
+              Registered Events
+            </button>
+            <button
               className={`py-2 px-6 font-medium ${activeEventTab === 'past' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-700'}`}
               onClick={() => setActiveEventTab('past')}
             >
@@ -196,6 +227,45 @@ const HomePage: React.FC = () => {
                           alt={event.name} 
                           className="w-full h-full object-cover"
                         />
+                      </div>
+                      <h4 className="text-xl font-semibold mb-2">{event.name}</h4>
+                      <div className="flex items-center text-gray-600 mb-1">
+                        <UserIcon className="h-4 w-4 mr-2" />
+                        <span>{event.organiser}</span>
+                      </div>
+                      <div className="flex items-center text-gray-600 mb-1">
+                        <CalendarIcon className="h-4 w-4 mr-2" />
+                        <span>{event.Event_Date}</span>
+                      </div>
+                      <div className="text-gray-600">{event.venue}</div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )
+          ) : activeEventTab === 'registered' ? (
+            registeredEvents.length === 0 ? (
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                <p className="text-blue-700">You haven't registered for any current events yet.</p>
+              </div>
+            ) : (
+              <div className={`grid gap-6 ${isDesktop ? 'grid-cols-3' : 'grid-cols-1'}`}>
+                {registeredEvents.map((event, index) => (
+                  <Link 
+                    key={index} 
+                    to={`/event/${event.id}`}
+                    state={{ fromHome: true }}
+                  >
+                    <div className="bg-white rounded-lg p-4 h-full shadow-lg hover:shadow-xl transition-shadow border-2 border-[#246d8c]/20">
+                      <div className="w-full aspect-square overflow-hidden rounded-md mb-4 relative">
+                        <img 
+                          src={event.poster} 
+                          alt={event.name} 
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
+                          Registered
+                        </div>
                       </div>
                       <h4 className="text-xl font-semibold mb-2">{event.name}</h4>
                       <div className="flex items-center text-gray-600 mb-1">
