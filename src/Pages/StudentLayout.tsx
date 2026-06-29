@@ -166,7 +166,7 @@ const StudentLayout: React.FC = () => {
         </div>
       )}
 
-      <div className={`flex-1 w-full overflow-y-auto ${isDesktop ? 'ml-64' : 'pb-16'}`}>
+      <div className={`flex-1 w-full overflow-y-auto ${isDesktop ? 'pl-64' : 'pb-16'}`}>
         <Outlet />
       </div>
 
