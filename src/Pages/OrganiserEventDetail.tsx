@@ -106,14 +106,53 @@ const OrganiserEventDetail = () => {
   }, [showReportForm, eventData]);
 
   const handleDelete = async () => {
-    if (!id) return;
+    if (!id || !eventData) return;
 
-    const confirmDelete = window.confirm("Are you sure you want to delete this event?");
+    const confirmDelete = window.confirm("Are you sure you want to delete this event? This will also permanently delete all associated posters, logos, and pending payment proofs.");
     if (!confirmDelete) return;
 
     try {
+      // 1. Delete Poster
+      if (eventData.poster) {
+        try {
+          const posterRef = ref(storage, eventData.poster);
+          await deleteObject(posterRef);
+        } catch (err) {
+          console.error('Error deleting poster:', err);
+        }
+      }
+
+      // 2. Delete Logos
+      // @ts-ignore
+      if (eventData.logos && Array.isArray(eventData.logos)) {
+        // @ts-ignore
+        for (const logoUrl of eventData.logos) {
+          try {
+            const logoRef = ref(storage, logoUrl);
+            await deleteObject(logoRef);
+          } catch (err) {
+            console.error('Error deleting logo:', err);
+          }
+        }
+      }
+
+      // 3. Delete Pending Payment Proofs
+      if (eventData.paymentProofs && Array.isArray(eventData.paymentProofs)) {
+        for (const proof of eventData.paymentProofs) {
+          if (proof.storagePath || proof.proofURL) {
+            try {
+              const proofRef = ref(storage, proof.storagePath || proof.proofURL);
+              await deleteObject(proofRef);
+            } catch (err) {
+              console.error('Error deleting payment proof:', err);
+            }
+          }
+        }
+      }
+
+      // Finally, delete the Firestore document
       await deleteDoc(doc(db, 'event', id));
-      alert("Event deleted successfully!");
+      alert("Event and all associated media deleted successfully!");
       navigate('/OrganiserHomePage');
     } catch (error) {
       console.error('Error deleting event:', error);
