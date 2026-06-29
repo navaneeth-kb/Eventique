@@ -276,6 +276,7 @@ const CreateEvent: React.FC = () => {
               />
             </div>
             
+            {/* 
             <div className="w-full mb-4">
               <div className="text-sm font-medium text-gray-700 mb-2">Organization Logos (Optional, up to 3)</div>
               
@@ -315,6 +316,7 @@ const CreateEvent: React.FC = () => {
                 </div>
               )}
             </div>
+            */}
           </div>
 
           <h4 className="text-lg font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200">Basic Information</h4>

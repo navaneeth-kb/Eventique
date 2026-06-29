@@ -4,6 +4,7 @@ import { auth } from '../firebaseConfig';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import logo from '../assets/logo.svg';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
@@ -12,6 +13,7 @@ const OrganiserLogin = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const db = getFirestore();
 
@@ -72,15 +74,26 @@ const OrganiserLogin = () => {
               required
             />
           </div>
-          <div className="w-[295px] h-12 px-4 py-[13px] rounded-md border border-[#e5e7eb] flex items-center bg-white">
+          <div className="w-[295px] h-12 px-4 py-[13px] rounded-md border border-[#e5e7eb] flex items-center bg-white justify-between">
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full text-[#111112]/60 text-base font-normal focus:outline-none bg-transparent"
               required
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="text-gray-400 hover:text-gray-600 focus:outline-none ml-2"
+            >
+              {showPassword ? (
+                <EyeSlashIcon className="h-5 w-5" />
+              ) : (
+                <EyeIcon className="h-5 w-5" />
+              )}
+            </button>
           </div>
 
           {error && (
