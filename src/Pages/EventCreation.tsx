@@ -17,6 +17,7 @@ const CreateEvent: React.FC = () => {
   const [logoPreviews, setLogoPreviews] = useState<string[]>([]);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [enablePayment, setEnablePayment] = useState<boolean>(false);
+  const [enableWhatsapp, setEnableWhatsapp] = useState<boolean>(false);
 
   const [eventData, setEventData] = useState({
     category: "",
@@ -36,6 +37,8 @@ const CreateEvent: React.FC = () => {
     venue: "",
     paymentEnabled: false,
     price: "",
+    whatsappLinkEnabled: false,
+    whatsappLink: "",
   });
 
   useEffect(() => {
@@ -150,6 +153,17 @@ const CreateEvent: React.FC = () => {
     });
   };
 
+  const toggleWhatsappOption = () => {
+    const newState = !enableWhatsapp;
+    setEnableWhatsapp(newState);
+    setEventData({
+      ...eventData,
+      whatsappLinkEnabled: newState,
+      // @ts-ignore
+      whatsappLink: newState ? eventData.whatsappLink : "",
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -185,6 +199,8 @@ const CreateEvent: React.FC = () => {
         logos: logoURLs,
         paymentEnabled: enablePayment,
         price: enablePayment ? eventData.price : 0,
+        whatsappLinkEnabled: enableWhatsapp,
+        whatsappLink: enableWhatsapp ? eventData.whatsappLink : "",
       });
 
       alert("Event created successfully!");
@@ -435,10 +451,14 @@ const CreateEvent: React.FC = () => {
                   <input
                     type="tel"
                     name="phone"
-                    placeholder="Phone Number"
+                    placeholder="Phone Number (10 digits)"
                     value={eventData.coordinator1.phone}
                     onChange={(e) => handleCoordinatorChange(e, 0)}
                     className="w-full h-10 px-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] outline-none text-sm"
+                    pattern="[0-9]{10}"
+                    title="Phone number must be exactly 10 digits"
+                    maxLength={10}
+                    minLength={10}
                     required
                   />
                 </div>
@@ -458,10 +478,14 @@ const CreateEvent: React.FC = () => {
                   <input
                     type="tel"
                     name="phone"
-                    placeholder="Phone Number"
+                    placeholder="Phone Number (10 digits)"
                     value={eventData.coordinator2.phone}
                     onChange={(e) => handleCoordinatorChange(e, 1)}
                     className="w-full h-10 px-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] outline-none text-sm"
+                    pattern="[0-9]{10}"
+                    title="Phone number must be exactly 10 digits"
+                    maxLength={10}
+                    minLength={10}
                   />
                 </div>
               </div>
@@ -510,6 +534,46 @@ const CreateEvent: React.FC = () => {
                       required={enablePayment}
                     />
                   </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 mt-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-md font-medium text-gray-800">WhatsApp Group</div>
+                  <div className="text-sm text-gray-500 mt-1">Provide a WhatsApp group link for participants to join after registering</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleWhatsappOption}
+                  className={`relative inline-flex items-center h-7 rounded-full w-12 transition-colors focus:outline-none ${
+                    enableWhatsapp ? 'bg-[#246D8C]' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`${
+                      enableWhatsapp ? 'translate-x-6' : 'translate-x-1'
+                    } inline-block w-5 h-5 transform bg-white rounded-full transition-transform shadow-sm`}
+                  />
+                </button>
+              </div>
+
+              {enableWhatsapp && (
+                <div className="mt-5 pt-5 border-t border-gray-200">
+                  <label htmlFor="whatsappLink" className="block text-sm font-medium text-gray-700 mb-2">
+                    WhatsApp Group Link
+                  </label>
+                  <input
+                    type="url"
+                    id="whatsappLink"
+                    name="whatsappLink"
+                    placeholder="https://chat.whatsapp.com/..."
+                    value={eventData.whatsappLink}
+                    onChange={handleInputChange}
+                    className="w-full h-12 px-4 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all font-medium"
+                    required={enableWhatsapp}
+                  />
                 </div>
               )}
             </div>
