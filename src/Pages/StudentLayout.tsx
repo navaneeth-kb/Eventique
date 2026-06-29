@@ -66,7 +66,7 @@ const StudentLayout: React.FC = () => {
     <div className="w-64 h-screen bg-white border-r border-gray-200 fixed left-0 top-0 p-6 flex flex-col z-50">
       <div className="mb-8 flex items-center gap-3">
         <img src={logo} alt="Eventique Logo" className="h-8 w-auto" />
-        <h1 className="text-2xl font-bold text-blue-600">Eventique</h1>
+        <h1 className="text-2xl font-bold text-[#246D8C]">Eventique</h1>
       </div>
       <nav className="flex-1">
         <ul className="space-y-2">
@@ -162,7 +162,7 @@ const StudentLayout: React.FC = () => {
       {!isDesktop && (
         <div className="bg-white border-b border-gray-200 h-14 flex items-center px-4 shrink-0 z-40 sticky top-0">
           <img src={logo} alt="Eventique Logo" className="h-6 w-auto mr-2" />
-          <h1 className="text-lg font-bold text-blue-600">Eventique</h1>
+          <h1 className="text-lg font-bold text-[#246D8C]">Eventique</h1>
         </div>
       )}
 

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 // @ts-ignore
 import { auth } from '../firebaseConfig';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import logo from '../assets/logo.svg';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
@@ -13,6 +14,11 @@ const OrganiserLogin = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const db = getFirestore();
+
+  useEffect(() => {
+    // Force sign out when landing on this page to disable automatic login
+    signOut(auth).catch(console.error);
+  }, []);
 
   const handleEmailSignIn = async (e: any) => {
     e.preventDefault();

@@ -75,42 +75,6 @@ function StudentAuthRedirect({ user, children }: { user: User | null; children: 
   return <>{children}</>;
 }
 
-/**
- * Redirects authenticated organisers away from the organiser login page.
- */
-function OrganiserAuthRedirect({ user, children }: { user: User | null; children: React.ReactNode }) {
-  const [checking, setChecking] = useState(true);
-  const [isOrganiser, setIsOrganiser] = useState(false);
-
-  useEffect(() => {
-    if (!user) {
-      setChecking(false);
-      return;
-    }
-
-    const checkOrganiser = async () => {
-      try {
-        if (!user.email) {
-          setIsOrganiser(false);
-        } else {
-          const db = getFirestore();
-          const docRef = doc(db, 'organizers', user.email);
-          const docSnap = await getDoc(docRef);
-          setIsOrganiser(docSnap.exists());
-        }
-      } catch (error) {
-        setIsOrganiser(false);
-      }
-      setChecking(false);
-    };
-
-    checkOrganiser();
-  }, [user]);
-
-  if (checking && user) return null;
-  if (isOrganiser && user) return <Navigate to="/OrganiserHomePage" />;
-  return <>{children}</>;
-}
 
 /**
  * Protects organiser routes so only users in the 'organizers' collection can access them.
@@ -230,8 +194,8 @@ function App() {
         <Route path="/signup" element={<StudentAuthRedirect user={user}><Signup /></StudentAuthRedirect>} />
         <Route path="/additionalinfo" element={user ? <AdditionalInfo /> : <Navigate to="/login" />} />
         
-        {/* Organiser Login uses its own redirect to avoid sending organisers to additional info */}
-        <Route path="/organiser-login" element={<OrganiserAuthRedirect user={user}><OrganiserLogin /></OrganiserAuthRedirect>} />
+        {/* Organiser Login no longer redirects automatically */}
+        <Route path="/organiser-login" element={<OrganiserLogin />} />
 
         {/* Public Event Route — redirects to login if not authenticated, then back to event */}
         <Route path="/event/:id" element={
