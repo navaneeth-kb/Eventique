@@ -40,11 +40,19 @@ const HomePage: React.FC = () => {
         return;
       }
 
+      // Fetch organizers to map email to name
+      const organizersSnapshot = await getDocs(collection(db, 'organizers'));
+      const organizersMap: Record<string, string> = {};
+      organizersSnapshot.forEach((doc) => {
+        organizersMap[doc.id] = doc.data().name;
+      });
+
       const eventsData = querySnapshot.docs.map((doc) => {
         const data = doc.data();
         const eventId = doc.id;
-        const eventDate = data['Event Date'] ? new Date(data['Event Date']) : null;
-        const formattedDate = eventDate ? format(eventDate, 'dd-MM-yyyy') : 'N/A';
+        const dateStr = data.event_date || data.event_Date || data['Event Date'];
+        const eventDate = dateStr ? new Date(dateStr) : null;
+        const formattedDate = eventDate && !isNaN(eventDate.getTime()) ? format(eventDate, 'dd-MM-yyyy') : 'N/A';
         const isClosed = data.status === 'closed';
         
         let userAttended = false;
@@ -59,9 +67,13 @@ const HomePage: React.FC = () => {
           isRegistered = data.Participants.includes(email) || data.Participants.includes(`"${email}"`);
         }
 
+        const organiserEmail = data.organiser || '';
+        const organiserName = organizersMap[organiserEmail] || organiserEmail;
+
         return {
           id: eventId,
           ...data,
+          organiser: organiserName,
           Event_Date: formattedDate,
           rawDate: eventDate,
           isClosed,

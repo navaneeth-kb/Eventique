@@ -21,11 +21,13 @@ const EventSection: React.FC = () => {
         const docRef = doc(db, "organizers", user.email);
         const docSnap = await getDoc(docRef);
 
+        let currentOrgName = "Organizer Name";
         if (docSnap.exists()) {
           const data = docSnap.data();
+          currentOrgName = data.name || data.email;
           setOrganizerName(data.name);
         } else {
-          setOrganizerName(" Organizer Name");
+          setOrganizerName("Organizer Name");
         }
 
         const eventsCollection = collection(db, "event");
@@ -39,12 +41,13 @@ const EventSection: React.FC = () => {
               id: doc.id,
               ...data,
               isClosed,
-              event_date: data.event_date || data.event_Date,
+              event_date: data.event_date || data.event_Date || data['Event Date'],
               event_time: data.event_time || data.eventTime
             };
           })
           // @ts-ignore
-          .filter((event) => event.organiser === user.email);
+          .filter((event) => event.organiser === user.email)
+          .map((event) => ({ ...event, organiser: currentOrgName }));
 
         const active = userEvents.filter(event => !event.isClosed);
         const closed = userEvents.filter(event => event.isClosed);
