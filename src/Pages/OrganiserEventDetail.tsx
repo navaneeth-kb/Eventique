@@ -32,6 +32,8 @@ interface EventData {
   num_of_participants?: number;
   attendees?: any[];
   Participants?: string[];
+  paymentProofs?: { userEmail: string; proofURL: string; storagePath: string; timestamp: any }[];
+  paymentEnabled?: boolean;
   coordinators?: { name: string; phone: string }[];
   description?: string;
 }
@@ -122,36 +124,15 @@ const OrganiserEventDetail = () => {
   const handleCloseEvent = async () => {
     if (!id || !eventData) return;
 
-    const confirmClose = window.confirm("Are you sure you want to close this event? This will:\n1. Move it to past events\n2. Close registration\n3. Remove it from current events\n4. Delete all uploaded payment screenshots");
+    const confirmClose = window.confirm("Are you sure you want to close this event? This will:\n1. Move it to past events\n2. Close registration\n3. Remove it from current events");
     if (!confirmClose) return;
 
     try {
       const eventRef = doc(db, 'event', id);
-      const eventSnap = await getDoc(eventRef);
-
-      if (eventSnap.exists()) {
-        const data = eventSnap.data();
-        if (data.paymentProofs && Array.isArray(data.paymentProofs)) {
-          console.log(`Deleting ${data.paymentProofs.length} payment proofs...`);
-          const deletePromises = data.paymentProofs.map(async (proof: any) => {
-            if (proof.proofURL) {
-              try {
-                const proofRef = ref(storage, proof.proofURL);
-                await deleteObject(proofRef);
-              } catch (e) {
-                console.error("Failed to delete payment proof from storage:", e);
-              }
-            }
-          });
-
-          await Promise.all(deletePromises);
-        }
-      }
 
       await updateDoc(eventRef, {
         status: 'closed',
-        registrationOpen: false,
-        paymentProofs: [] // Clear the array in Firestore as well
+        registrationOpen: false
       });
 
       setEventData({
@@ -160,10 +141,77 @@ const OrganiserEventDetail = () => {
         registrationOpen: false
       });
 
-      alert("Event closed successfully! Registration is closed and payment proofs have been deleted.");
+      alert("Event closed successfully! Registration is closed.");
     } catch (error) {
       console.error('Error closing event:', error);
       alert("Failed to close event.");
+    }
+  };
+
+  const handleApprovePayment = async (proof: any) => {
+    if (!id || !eventData) return;
+    
+    try {
+      const eventRef = doc(db, 'event', id);
+      
+      // Update firestore: add to Participants, remove from paymentProofs
+      const updatedProofs = eventData.paymentProofs?.filter((p) => p.userEmail !== proof.userEmail) || [];
+      const updatedParticipants = [...(eventData.Participants || []), proof.userEmail];
+      
+      await updateDoc(eventRef, {
+        Participants: updatedParticipants,
+        paymentProofs: updatedProofs
+      });
+      
+      // Delete from storage
+      if (proof.storagePath) {
+        const fileRef = ref(storage, proof.storagePath);
+        await deleteObject(fileRef).catch(console.error);
+      }
+      
+      setEventData({
+        ...eventData,
+        Participants: updatedParticipants,
+        paymentProofs: updatedProofs
+      });
+      
+      alert(`Successfully verified and registered ${proof.userEmail}`);
+    } catch (error) {
+      console.error('Error approving payment:', error);
+      alert('Failed to approve payment.');
+    }
+  };
+
+  const handleRejectPayment = async (proof: any) => {
+    if (!id || !eventData) return;
+    
+    if (!window.confirm(`Are you sure you want to reject payment for ${proof.userEmail}? This will delete their proof.`)) return;
+    
+    try {
+      const eventRef = doc(db, 'event', id);
+      
+      // Update firestore: remove from paymentProofs
+      const updatedProofs = eventData.paymentProofs?.filter((p) => p.userEmail !== proof.userEmail) || [];
+      
+      await updateDoc(eventRef, {
+        paymentProofs: updatedProofs
+      });
+      
+      // Delete from storage
+      if (proof.storagePath) {
+        const fileRef = ref(storage, proof.storagePath);
+        await deleteObject(fileRef).catch(console.error);
+      }
+      
+      setEventData({
+        ...eventData,
+        paymentProofs: updatedProofs
+      });
+      
+      alert(`Rejected payment for ${proof.userEmail}`);
+    } catch (error) {
+      console.error('Error rejecting payment:', error);
+      alert('Failed to reject payment.');
     }
   };
 
@@ -521,6 +569,50 @@ const OrganiserEventDetail = () => {
                 )}
               </div>
             </div>
+
+            {/* Pending Verifications UI */}
+            {eventData.paymentEnabled && eventData.paymentProofs && eventData.paymentProofs.length > 0 && (
+              <div className="mt-8 bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+                <h2 className="text-xl font-bold text-yellow-800 mb-4 border-b border-yellow-200 pb-2">
+                  Pending Verifications ({eventData.paymentProofs.length})
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {eventData.paymentProofs.map((proof, index) => (
+                    <div key={index} className="bg-white rounded-lg shadow-sm border border-yellow-100 overflow-hidden flex flex-col">
+                      <div className="p-3 bg-yellow-100/50 border-b border-yellow-100">
+                        <p className="text-sm font-medium text-gray-800 truncate" title={proof.userEmail}>
+                          {proof.userEmail}
+                        </p>
+                      </div>
+                      <div className="p-4 flex-1 flex flex-col items-center justify-center bg-gray-50">
+                        <a href={proof.proofURL} target="_blank" rel="noreferrer" className="block w-full">
+                          <img 
+                            src={proof.proofURL} 
+                            alt="Payment Proof" 
+                            className="max-h-40 object-contain mx-auto border border-gray-200 rounded shadow-sm hover:opacity-90 transition-opacity"
+                          />
+                        </a>
+                        <p className="text-xs text-gray-400 mt-2 text-center italic">Click image to enlarge</p>
+                      </div>
+                      <div className="p-3 bg-gray-50 border-t border-gray-100 flex gap-2 justify-between">
+                        <button
+                          onClick={() => handleRejectPayment(proof)}
+                          className="flex-1 px-3 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 rounded-md text-sm font-medium transition-colors"
+                        >
+                          Reject
+                        </button>
+                        <button
+                          onClick={() => handleApprovePayment(proof)}
+                          className="flex-1 px-3 py-1.5 bg-green-600 text-white hover:bg-green-700 rounded-md text-sm font-medium transition-colors shadow-sm"
+                        >
+                          Approve
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="mt-8 flex flex-wrap gap-4 justify-center">

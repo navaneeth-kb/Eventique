@@ -41,6 +41,7 @@ const EventDetails: React.FC = () => {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [registerMessage, setRegisterMessage] = useState<string | null>(null);
   const [isRegistered, setIsRegistered] = useState<boolean>(false);
+  const [isPendingVerification, setIsPendingVerification] = useState<boolean>(false);
   const [isPresent, setIsPresent] = useState<boolean>(false);
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
   const [paymentScreenshotPreview, setPaymentScreenshotPreview] = useState<string | null>(null);
@@ -142,8 +143,12 @@ const EventDetails: React.FC = () => {
               fetchOrganizerData(data.organiser);
             }
 
-            if (userEmail && data.Participants?.includes(userEmail)) {
-              setIsRegistered(true);
+            if (userEmail) {
+              if (data.Participants?.includes(userEmail)) {
+                setIsRegistered(true);
+              } else if (data.paymentProofs?.some((proof: any) => proof.userEmail === userEmail)) {
+                setIsPendingVerification(true);
+              }
             }
             
             // Only check attendance if event is closed
@@ -237,13 +242,13 @@ const EventDetails: React.FC = () => {
         paymentProofs: arrayUnion({
           userEmail,
           proofURL: downloadURL,
+          storagePath: fileName,
           timestamp: new Date()
-        }),
-        Participants: arrayUnion(userEmail),
+        })
       });
       
-      setRegisterMessage('Payment proof uploaded and registration successful!');
-      setIsRegistered(true);
+      setRegisterMessage('Payment proof uploaded successfully! Your registration is pending verification.');
+      setIsPendingVerification(true);
     } catch (error) {
       console.error('Error uploading payment proof:', error);
       setRegisterMessage('Failed to upload payment proof. Please try again.');
@@ -577,34 +582,38 @@ const EventDetails: React.FC = () => {
           {/* Registration & Feedback Sections wrapper */}
           <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
             {/* Registration Status Section */}
-<div className="mb-6 border-t pt-4">
-  {isRegistered ? (
-    <div className="p-4 bg-green-50 border border-green-200 rounded-md">
-      <div className="text-center">
-        <p className="text-green-600 font-medium">
-          You are registered for this event!
-        </p>
-      </div>
-      
-      {eventData.paymentEnabled ? (
-        !paymentScreenshotPreview && (
-          <p className="text-sm text-gray-600 mt-2 text-center">
-            As you have already paid for the event, talk to the event coordinators to unregister.
-          </p>
-        )
-      ) : (
-        <div className="mt-3 flex justify-center">
-          <button
-            className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md text-sm font-medium"
-            onClick={handleUnregister}
-          >
-            Unregister from Event
-          </button>
-        </div>
-      )}
-    </div>
-  ) : !isEventClosed ? (
-    eventData.paymentEnabled ? (
+            <div className="mb-6 border-t pt-4">
+              {isRegistered ? (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+                  <div className="text-center">
+                    <p className="text-green-600 font-medium">
+                      You are registered for this event!
+                    </p>
+                  </div>
+                  {!eventData.paymentEnabled && (
+                    <div className="mt-3 flex justify-center">
+                      <button
+                        className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md text-sm font-medium"
+                        onClick={handleUnregister}
+                      >
+                        Unregister from Event
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : isPendingVerification ? (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <div className="text-center">
+                    <p className="text-yellow-700 font-medium">
+                      Payment Proof Submitted
+                    </p>
+                    <p className="text-sm text-yellow-600 mt-1">
+                      Your payment is currently under review by the organiser. You will be officially registered once verified.
+                    </p>
+                  </div>
+                </div>
+              ) : !isEventClosed && eventData.registrationOpen !== false ? (
+                eventData.paymentEnabled ? (
       <>
         <h3 className="text-lg font-medium mb-3">Payment Information</h3>
         <p className="text-gray-700 mb-3">
