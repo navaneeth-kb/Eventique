@@ -14,6 +14,7 @@ const OrganiserLayout: React.FC = () => {
   const location = useLocation();
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 768);
   const [userName, setUserName] = useState<string | null>(null);
+  const [userPhoto, setUserPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 768);
@@ -26,8 +27,10 @@ const OrganiserLayout: React.FC = () => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUserName(user.displayName);
+        setUserPhoto(user.photoURL);
       } else {
         setUserName('Organiser');
+        setUserPhoto(null);
       }
     });
     return () => unsubscribe();
@@ -113,9 +116,13 @@ const OrganiserLayout: React.FC = () => {
       </nav>
       <div className="mt-auto pt-6 border-t border-gray-200">
         <div className="flex items-center">
-          <div className="w-10 h-10 rounded-full bg-[#246D8C]/20 flex items-center justify-center text-[#246D8C] font-bold">
-            {userName ? userName.charAt(0) : 'O'}
-          </div>
+          {userPhoto ? (
+            <img src={userPhoto} alt={userName || 'Organiser'} className="w-10 h-10 rounded-full object-cover" />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-[#246D8C]/20 flex items-center justify-center text-[#246D8C] font-bold">
+              {userName ? userName.charAt(0) : 'O'}
+            </div>
+          )}
           <div className="ml-3">
             <p className="font-medium text-sm line-clamp-1">{userName || 'Organiser'}</p>
             <p className="text-xs text-gray-500">Dashboard</p>

@@ -29,6 +29,7 @@ const Profile: React.FC = () => {
     uid: "",
     year: 0,
     email: "",
+    photoURL: "",
   });
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -56,6 +57,7 @@ const Profile: React.FC = () => {
               uid: userData.uid || "",
               year: userData.year || 0,
               email: user.email || "",
+              photoURL: user.photoURL || "",
             });
           }
         }
@@ -97,7 +99,14 @@ const Profile: React.FC = () => {
     <div className="min-h-screen bg-[#e9f7f1] flex flex-col items-center justify-start p-4 pb-20 lg:pl-16 xl:pl-64">
       <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg md:shadow-2xl overflow-hidden lg:ml-4 xl:ml-8 mt-4">
         {/* Profile Header */}
-        <div className="bg-[#246d8c] p-4 md:p-6 text-white text-center">
+        <div className="bg-[#246d8c] p-4 md:p-6 text-white text-center flex flex-col items-center">
+          {userProfile.photoURL ? (
+            <img src={userProfile.photoURL} alt={userProfile.name} className="w-24 h-24 rounded-full border-4 border-white mb-4 object-cover shadow-md bg-white" />
+          ) : (
+            <div className="w-24 h-24 rounded-full bg-white text-[#246d8c] flex items-center justify-center text-4xl font-bold mb-4 border-4 border-[#1a4f63] shadow-md">
+              {userProfile.name ? userProfile.name.charAt(0).toUpperCase() : 'U'}
+            </div>
+          )}
           <h1 className="text-xl sm:text-2xl font-bold">{userProfile.name}</h1>
           <p className="text-blue-100 text-sm sm:text-base mt-1">{userProfile.email}</p>
         </div>

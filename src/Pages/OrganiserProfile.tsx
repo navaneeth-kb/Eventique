@@ -13,6 +13,7 @@ const OrganiserProfile: React.FC = () => {
     name: "",
     password: "",
     email: "",
+    photoURL: "",
   });
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -35,10 +36,11 @@ const OrganiserProfile: React.FC = () => {
                 name: organiserData.name || "",
                 password: organiserData.password || "",
                 email: email,
+                photoURL: user.photoURL || "",
               });
             } else {
               console.log("No such organiser profile found!");
-              setOrganiserProfile(prev => ({ ...prev, email: email }));
+              setOrganiserProfile(prev => ({ ...prev, email: email, photoURL: user.photoURL || "" }));
             }
           }
         }
@@ -77,10 +79,14 @@ const OrganiserProfile: React.FC = () => {
     <div className="min-h-screen bg-[#e9f7f1] flex flex-col items-center justify-start p-4 pb-20">
       <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg overflow-hidden mt-4">
         {/* Profile Header */}
-        <div className="bg-[#246d8c] p-6 text-white text-center relative">
-          <div className="w-24 h-24 rounded-full bg-white text-[#246d8c] flex items-center justify-center text-4xl font-bold mx-auto mb-4 shadow-md">
-            {organiserProfile.name ? organiserProfile.name.charAt(0).toUpperCase() : 'O'}
-          </div>
+        <div className="bg-[#246d8c] p-6 text-white text-center relative flex flex-col items-center">
+          {organiserProfile.photoURL ? (
+            <img src={organiserProfile.photoURL} alt={organiserProfile.name || "Organiser"} className="w-24 h-24 rounded-full border-4 border-[#1a4f63] mb-4 object-cover shadow-md bg-white" />
+          ) : (
+            <div className="w-24 h-24 rounded-full bg-white text-[#246d8c] flex items-center justify-center text-4xl font-bold mx-auto mb-4 shadow-md border-4 border-[#1a4f63]">
+              {organiserProfile.name ? organiserProfile.name.charAt(0).toUpperCase() : 'O'}
+            </div>
+          )}
           <h1 className="text-2xl font-bold">{organiserProfile.name || "Organiser"}</h1>
           <p className="text-blue-100 mt-1">Organiser Account</p>
         </div>
