@@ -443,23 +443,32 @@ const OrganiserEventDetail = () => {
   };
 
   const generateAttendanceList = async () => {
-    if (!eventData || !eventData.Participants || eventData.Participants.length === 0) {
-      alert("No registered participants for this event.");
+    if (!eventData || !eventData.attendees || eventData.attendees.length === 0) {
+      alert("No attendees recorded for this event yet.");
       return;
     }
 
     setIsGeneratingAttendance(true);
     try {
       const usersCollection = collection(db, 'users');
-      const participantPromises = eventData.Participants.map(async (email: string) => {
-        const q = query(usersCollection, where("email", "==", email));
-        const querySnapshot = await getDocs(q);
-        
-        if (!querySnapshot.empty) {
-          const userDoc = querySnapshot.docs[0];
-          return userDoc.data();
+      
+      // Handle both legacy string arrays and new object arrays { email, timestamp }
+      const attendeeEmails = eventData.attendees.map((a: any) => typeof a === 'string' ? a : a.email).filter(Boolean);
+
+      const participantPromises = attendeeEmails.map(async (email: string) => {
+        try {
+          const q = query(usersCollection, where("email", "==", email));
+          const querySnapshot = await getDocs(q);
+          
+          if (!querySnapshot.empty) {
+            const userDoc = querySnapshot.docs[0];
+            return userDoc.data();
+          }
+          return { email, name: 'User not found' };
+        } catch (e) {
+          console.error("Error fetching profile for attendance", email, e);
+          return { email, name: 'Profile hidden' };
         }
-        return { email, name: 'User not found' };
       });
       
       const participantData = await Promise.all(participantPromises);

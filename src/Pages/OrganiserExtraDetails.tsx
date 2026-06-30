@@ -43,27 +43,42 @@ const OrganiserExtraDetails = () => {
           if (participantEmails.length > 0) {
             const usersCollection = collection(db, 'users');
             const participantPromises = participantEmails.map(async (email: string) => {
-              const q = query(usersCollection, where("email", "==", email));
-              const querySnapshot = await getDocs(q);
-              
-              if (!querySnapshot.empty) {
-                const userDoc = querySnapshot.docs[0];
-                const userData = userDoc.data();
+              try {
+                const q = query(usersCollection, where("email", "==", email));
+                const querySnapshot = await getDocs(q);
+                
+                if (!querySnapshot.empty) {
+                  const userDoc = querySnapshot.docs[0];
+                  const userData = userDoc.data();
+                  return {
+                    email,
+                    name: userData.name || 'N/A',
+                    phoneNumber: userData.phoneNumber || 'N/A',
+                    uid: userData.uid || 'N/A',
+                    batch: userData.batch || 'N/A',
+                    branch: userData.branch || 'N/A',
+                    division: userData.division || 'N/A',
+                    gender: userData.gender || 'N/A',
+                    year: userData.year || 0,
+                  };
+                } else {
+                  return {
+                    email,
+                    name: 'User not found',
+                    phoneNumber: 'N/A',
+                    uid: 'N/A',
+                    batch: 'N/A',
+                    branch: 'N/A',
+                    division: 'N/A',
+                    gender: 'N/A',
+                    year: 0,
+                  };
+                }
+              } catch (e) {
+                console.error("Error fetching profile for", email, e);
                 return {
                   email,
-                  name: userData.name || 'N/A',
-                  phoneNumber: userData.phoneNumber || 'N/A',
-                  uid: userData.uid || 'N/A',
-                  batch: userData.batch || 'N/A',
-                  branch: userData.branch || 'N/A',
-                  division: userData.division || 'N/A',
-                  gender: userData.gender || 'N/A',
-                  year: userData.year || 0,
-                };
-              } else {
-                return {
-                  email,
-                  name: 'User not found',
+                  name: 'Profile hidden',
                   phoneNumber: 'N/A',
                   uid: 'N/A',
                   batch: 'N/A',
