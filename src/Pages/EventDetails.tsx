@@ -555,7 +555,7 @@ const EventDetails: React.FC = () => {
               {eventData.description && (
                 <div className="mb-8">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">About this event</h3>
-                  <p className="text-gray-600 leading-relaxed">{eventData.description}</p>
+                  <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{eventData.description}</p>
                 </div>
               )}
 

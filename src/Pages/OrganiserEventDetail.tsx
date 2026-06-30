@@ -584,7 +584,7 @@ const OrganiserEventDetail = () => {
                 {eventData.description && (
                   <div>
                     <h3 className="font-semibold text-gray-700">Description</h3>
-                    <p className="text-gray-600">{eventData.description}</p>
+                    <p className="text-gray-600 whitespace-pre-wrap">{eventData.description}</p>
                   </div>
                 )}
 
