@@ -19,6 +19,7 @@ import EventCreateSuccess from './Pages/EventCreateSuccess';
 import OrganiserEventDetail from './Pages/OrganiserEventDetail';
 import OrganiserEditEvent from './Pages/OrganiserEditEvent';
 import OrganiserExtraDetails from './Pages/OrganiserExtraDetails';
+import OrganiserAttendanceDetails from './Pages/OrganiserAttendanceDetails';
 import OrganiserFeedbackDetails from './Pages/OrganiserFeedbackDetails';
 import OrganiserProfile from './Pages/OrganiserProfile';
 import Profile from './Pages/Profile';
@@ -227,6 +228,7 @@ function App() {
           <Route path="/OrganiserHomePage/EditEvent/:id" element={<OrganiserEditEvent />} />
           <Route path="/OrganiserHomePage/OrganiserEventDetail/Scan/:id" element={<Scan />} />
           <Route path="/OrganiserExtraDetails/:id" element={<OrganiserExtraDetails />} />
+          <Route path="/OrganiserAttendanceDetails/:id" element={<OrganiserAttendanceDetails />} />
           <Route path="/OrganiserFeedbackDetails/:id" element={<OrganiserFeedbackDetails />} />
           <Route path="/OrganiserProfile" element={<OrganiserProfile />} />
           <Route path="/OrganiserHomePage/:id" element={<OrganiserEventDetail />} />

@@ -741,16 +741,13 @@ const OrganiserEventDetail = () => {
                 Registered Participants
               </button>
               
-              {/* Download Attendance List Button */}
+              {/* View Attendance List Button */}
               <button
-                onClick={generateAttendanceList}
-                disabled={isGeneratingAttendance}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                  isGeneratingAttendance ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#246d8c] hover:bg-indigo-700 text-white'
-                }`}
+                onClick={() => navigate(`/OrganiserAttendanceDetails/${id}`)}
+                className="flex items-center gap-2 bg-[#246d8c] hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors"
               >
-                <ArrowDownTrayIcon className="h-5 w-5" />
-                {isGeneratingAttendance ? 'Generating...' : 'Attendance List'}
+                <DocumentTextIcon className="h-5 w-5" />
+                Attendance List
               </button>
             </div>
 
