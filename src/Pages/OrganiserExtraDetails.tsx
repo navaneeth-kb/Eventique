@@ -17,6 +17,8 @@ interface Participant {
   division: string;
   gender: string;
   year: number;
+  teamCode?: string;
+  teamName?: string;
 }
 
 const OrganiserExtraDetails = () => {
@@ -24,6 +26,7 @@ const OrganiserExtraDetails = () => {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [eventName, setEventName] = useState('');
+  const [isTeamEvent, setIsTeamEvent] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,6 +40,23 @@ const OrganiserExtraDetails = () => {
         if (eventSnap.exists()) {
           const eventData = eventSnap.data();
           setEventName(eventData.name || 'Event');
+          
+          const isTeam = eventData.isTeamEvent || false;
+          setIsTeamEvent(isTeam);
+          
+          let emailToTeamMap: Record<string, {teamCode: string, teamName: string}> = {};
+          if (isTeam) {
+            const teamsRef = collection(db, 'event', id, 'teams');
+            const teamSnaps = await getDocs(teamsRef);
+            teamSnaps.forEach(doc => {
+              const td = doc.data();
+              if (td.members) {
+                 td.members.forEach((m: string) => {
+                   emailToTeamMap[m] = { teamCode: td.teamCode, teamName: td.teamName || `Team ${td.teamCode}` };
+                 });
+              }
+            });
+          }
           
           const participantEmails = eventData.Participants || [];
           
@@ -60,6 +80,8 @@ const OrganiserExtraDetails = () => {
                     division: userData.division || 'N/A',
                     gender: userData.gender || 'N/A',
                     year: userData.year || 0,
+                    teamCode: emailToTeamMap[email]?.teamCode || 'N/A',
+                    teamName: emailToTeamMap[email]?.teamName || 'N/A',
                   };
                 } else {
                   return {
@@ -72,6 +94,8 @@ const OrganiserExtraDetails = () => {
                     division: 'N/A',
                     gender: 'N/A',
                     year: 0,
+                    teamCode: emailToTeamMap[email]?.teamCode || 'N/A',
+                    teamName: emailToTeamMap[email]?.teamName || 'N/A',
                   };
                 }
               } catch (e) {
@@ -86,11 +110,16 @@ const OrganiserExtraDetails = () => {
                   division: 'N/A',
                   gender: 'N/A',
                   year: 0,
+                    teamCode: emailToTeamMap[email]?.teamCode || 'N/A',
+                    teamName: emailToTeamMap[email]?.teamName || 'N/A',
                 };
               }
             });
             
             const participantData = await Promise.all(participantPromises);
+            if (isTeam) {
+              participantData.sort((a, b) => (a.teamName || '').localeCompare(b.teamName || ''));
+            }
             setParticipants(participantData);
           }
         }
@@ -120,21 +149,30 @@ const OrganiserExtraDetails = () => {
     doc.text(`Total Participants: ${participants.length}`, 14, 35);
     
     // Prepare data for the table
-    const headers = [
-      ['Name', 'Email', 'Phone', 'UID', 'Batch', 'Branch', 'Division', 'Gender', 'Year']
-    ];
     
-    const tableData = participants.map(participant => [
-      participant.name,
-      participant.email,
-      participant.phoneNumber,
-      participant.uid,
-      participant.batch,
-      participant.branch,
-      participant.division,
-      participant.gender,
-      participant.year.toString()
-    ]);
+    const tableData = participants.map(participant => {
+      const row = [
+        participant.name,
+        participant.email,
+        participant.phoneNumber,
+        participant.uid,
+        participant.batch,
+        participant.branch,
+        participant.division,
+        participant.gender,
+        participant.year.toString()
+      ];
+      if (isTeamEvent) {
+        row.unshift(`${participant.teamName} (${participant.teamCode})`);
+      }
+      return row;
+    });
+    
+    let headers = [['Name', 'Email', 'Phone', 'UID', 'Batch', 'Branch', 'Division', 'Gender', 'Year']];
+    if (isTeamEvent) {
+      headers = [['Team', 'Name', 'Email', 'Phone', 'UID', 'Batch', 'Branch', 'Division', 'Gender', 'Year']];
+    }
+
     
     // Add table using autoTable plugin
     autoTable(doc, {
@@ -163,7 +201,7 @@ const OrganiserExtraDetails = () => {
         5: { cellWidth: 15 }, // Branch
         6: { cellWidth: 15 }, // Division
         7: { cellWidth: 15 }, // Gender
-        8: { cellWidth: 10 }  // Year
+        8: { cellWidth: 10 }, // Year
       },
       margin: { top: 40 }
     });
@@ -214,6 +252,7 @@ const OrganiserExtraDetails = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                {isTeamEvent && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Team</th>}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
@@ -227,22 +266,41 @@ const OrganiserExtraDetails = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {participants.length > 0 ? (
-                participants.map((participant, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{participant.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.email}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.phoneNumber}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.uid}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.batch}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.branch}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.division}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.gender}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.year}</td>
-                  </tr>
-                ))
+                participants.map((participant, index) => {
+                  let isFirstInTeam = false;
+                  let teamMembersCount = 0;
+                  
+                  if (isTeamEvent) {
+                    const prevParticipant = index > 0 ? participants[index - 1] : null;
+                    if (!prevParticipant || prevParticipant.teamCode !== participant.teamCode) {
+                      isFirstInTeam = true;
+                      teamMembersCount = participants.filter(p => p.teamCode === participant.teamCode).length;
+                    }
+                  }
+
+                  return (
+                    <tr key={index} className="hover:bg-gray-50 border-b border-gray-100">
+                      {isTeamEvent && isFirstInTeam && (
+                        <td rowSpan={teamMembersCount} className="px-6 py-4 whitespace-nowrap align-top border-r border-gray-200 bg-blue-50/30">
+                          <div className="font-bold text-[#246d8c]">{participant.teamName}</div>
+                          <div className="text-xs text-gray-500 mt-1 font-mono">{participant.teamCode}</div>
+                        </td>
+                      )}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{participant.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.email}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.phoneNumber}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.uid}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.batch}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.branch}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.division}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.gender}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.year}</td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan={9} className="px-6 py-4 text-center text-sm text-gray-500">
+                  <td colSpan={isTeamEvent ? 10 : 9} className="px-6 py-4 text-center text-sm text-gray-500">
                     No participants registered for this event yet.
                   </td>
                 </tr>

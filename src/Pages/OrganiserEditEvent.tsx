@@ -39,6 +39,11 @@ const OrganiserEditEvent: React.FC = () => {
     venue: "",
     price: "",
     whatsappLink: "",
+    isTeamEvent: false,
+    minTeamSize: "",
+    maxTeamSize: "",
+    isOvernight: false,
+    isFoodProvided: false,
   });
 
   useEffect(() => {
@@ -70,6 +75,11 @@ const OrganiserEditEvent: React.FC = () => {
             venue: data.venue || "",
             price: data.price || "",
             whatsappLink: data.whatsappLink || "",
+            isTeamEvent: data.isTeamEvent || false,
+            minTeamSize: data.minTeamSize || "",
+            maxTeamSize: data.maxTeamSize || "",
+            isOvernight: data.isOvernight || false,
+            isFoodProvided: data.isFoodProvided || false,
           });
 
           setEnablePayment(data.paymentEnabled || false);
@@ -161,6 +171,15 @@ const OrganiserEditEvent: React.FC = () => {
     setEnableWhatsapp(newState);
   };
 
+  const toggleTeamEventOption = () => {
+    setEventData({
+      ...eventData,
+      isTeamEvent: !eventData.isTeamEvent,
+      minTeamSize: !eventData.isTeamEvent ? eventData.minTeamSize : "",
+      maxTeamSize: !eventData.isTeamEvent ? eventData.maxTeamSize : "",
+    });
+  };
+
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
@@ -193,7 +212,7 @@ const OrganiserEditEvent: React.FC = () => {
       if (enablePayment) {
         if (upiQrFile) {
           // @ts-ignore
-          const qrRef = ref(storage, `eventQRs/${Date.now()}_${upiQrFile.name}`);
+          const qrRef = ref(storage, `upiQrCodes/${Date.now()}_${upiQrFile.name}`);
           // @ts-ignore
           const qrSnapshot = await uploadBytes(qrRef, upiQrFile);
           finalUpiQrURL = await getDownloadURL(qrSnapshot.ref);
@@ -240,6 +259,11 @@ const OrganiserEditEvent: React.FC = () => {
         upiQr: finalUpiQrURL,
         whatsappLinkEnabled: enableWhatsapp,
         whatsappLink: enableWhatsapp ? eventData.whatsappLink : "",
+        isTeamEvent: eventData.isTeamEvent,
+        minTeamSize: eventData.isTeamEvent ? parseInt(eventData.minTeamSize as string) || 0 : 0,
+        maxTeamSize: eventData.isTeamEvent ? parseInt(eventData.maxTeamSize as string) || 0 : 0,
+        isOvernight: eventData.isOvernight,
+        isFoodProvided: eventData.isFoodProvided,
       };
 
       if (eventDateTimestamp) {
@@ -443,6 +467,106 @@ const OrganiserEditEvent: React.FC = () => {
                   onChange={handleInputChange}
                   className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
                 />
+              </div>
+            </div>
+
+            <h4 className="text-lg font-semibold text-gray-700 mt-8 mb-4 pb-2 border-b border-gray-200">Team Event Details</h4>
+
+            <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-md font-medium text-gray-800">Team Event</div>
+                  <div className="text-sm text-gray-500 mt-1">Allow participants to register as a team</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleTeamEventOption}
+                  className={`relative inline-flex items-center h-7 rounded-full w-12 transition-colors focus:outline-none ${
+                    eventData.isTeamEvent ? 'bg-[#246D8C]' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`${
+                      eventData.isTeamEvent ? 'translate-x-6' : 'translate-x-1'
+                    } inline-block w-5 h-5 transform bg-white rounded-full transition-transform shadow-sm`}
+                  />
+                </button>
+              </div>
+
+              {eventData.isTeamEvent && (
+                <div className="mt-5 pt-5 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Min Team Size</label>
+                    <input
+                      type="number"
+                      name="minTeamSize"
+                      placeholder="e.g. 2"
+                      min="2"
+                      value={eventData.minTeamSize}
+                      onChange={handleInputChange}
+                      className="w-full h-12 px-4 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] outline-none transition-all"
+                      required={eventData.isTeamEvent}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Max Team Size</label>
+                    <input
+                      type="number"
+                      name="maxTeamSize"
+                      placeholder="e.g. 4"
+                      min={eventData.minTeamSize || "2"}
+                      value={eventData.maxTeamSize}
+                      onChange={handleInputChange}
+                      className="w-full h-12 px-4 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] outline-none transition-all"
+                      required={eventData.isTeamEvent}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Extra Event Settings */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 mt-6">
+              <h3 className="text-xl font-bold text-[#246D8C] mb-6 border-b pb-2">Extra Settings</h3>
+              
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h4 className="font-semibold text-gray-800">Overnight Event</h4>
+                  <p className="text-sm text-gray-500">Will this event span across multiple days/nights?</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEventData({...eventData, isOvernight: !eventData.isOvernight})}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    eventData.isOvernight ? 'bg-[#246D8C]' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      eventData.isOvernight ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-semibold text-gray-800">Food Provided</h4>
+                  <p className="text-sm text-gray-500">Will food be provided to the participants?</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEventData({...eventData, isFoodProvided: !eventData.isFoodProvided})}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    eventData.isFoodProvided ? 'bg-[#246D8C]' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      eventData.isFoodProvided ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
               </div>
             </div>
 

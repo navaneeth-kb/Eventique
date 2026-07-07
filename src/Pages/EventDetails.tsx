@@ -9,9 +9,10 @@ import {
   ClockIcon, 
   UsersIcon, 
   CurrencyRupeeIcon 
+, ClipboardDocumentIcon
 } from '@heroicons/react/24/outline';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, doc, getDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { getFirestore, doc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, setDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 // @ts-ignore
 import { storage } from "../firebaseConfig";
@@ -37,7 +38,15 @@ const EventDetails: React.FC = () => {
   const [certificateName, setCertificateName] = useState<string>("");
   const [eventData, setEventData] = useState<any>(null);
   const [organizerData, setOrganizerData] = useState<any>(null);
+  
   const [error, setError] = useState<string | null>(null);
+  const [isTeamEvent, setIsTeamEvent] = useState(false);
+  const [userTeam, setUserTeam] = useState<any>(null);
+  const [joinTeamMode, setJoinTeamMode] = useState(false);
+  const [createTeamMode, setCreateTeamMode] = useState(false);
+  const [teamCodeInput, setTeamCodeInput] = useState("");
+  const [teamMembers, setTeamMembers] = useState<any[]>([]); // To store detailed user profiles for team members
+
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [registerMessage, setRegisterMessage] = useState<string | null>(null);
   const [isRegistered, setIsRegistered] = useState<boolean>(false);
@@ -56,6 +65,10 @@ const EventDetails: React.FC = () => {
     division: "",
     year: 0
   });
+  const [teamNameInput, setTeamNameInput] = useState<string>("");
+  const [dietaryPreference, setDietaryPreference] = useState<"Veg" | "Non-Veg" | "">("");
+  const [showUnregisterConfirm, setShowUnregisterConfirm] = useState<boolean>(false);
+
   // Feedback States
   const [q1Rec, setQ1Rec] = useState<number | null>(null);
   const [q2Rate, setQ2Rate] = useState<string>("");
@@ -128,6 +141,8 @@ const EventDetails: React.FC = () => {
   };
 
   useEffect(() => {
+    let unsubscribeTeam: (() => void) | null = null;
+
     if (id) {
       const fetchEventDetails = async () => {
         try {
@@ -142,8 +157,44 @@ const EventDetails: React.FC = () => {
             if (data.organiser) {
               fetchOrganizerData(data.organiser);
             }
+            
+            if (data.isTeamEvent) {
+              setIsTeamEvent(true);
+            }
 
             if (userEmail) {
+              if (data.isTeamEvent) {
+                // Check if user is in any team and listen in real-time
+                const teamsRef = collection(db, 'event', id, 'teams');
+                const q = query(teamsRef, where("members", "array-contains", userEmail));
+                
+                unsubscribeTeam = onSnapshot(q, async (teamSnaps) => {
+                  if (!teamSnaps.empty) {
+                    const teamData = teamSnaps.docs[0].data();
+                    setUserTeam(teamData);
+                    
+                    if (teamData.status === 'registered') {
+                      setIsRegistered(true);
+                    } else if (teamData.status === 'pending_verification') {
+                      setIsPendingVerification(true);
+                    }
+                    
+                    // Fetch team members profiles
+                    const memberPromises = teamData.members.map(async (mEmail: string) => {
+                      try {
+                        const uq = query(collection(db, 'users'), where("email", "==", mEmail));
+                        const uSnap = await getDocs(uq);
+                        return uSnap.empty ? { name: mEmail, email: mEmail } : uSnap.docs[0].data();
+                      } catch (error) {
+                        console.warn("Could not fetch profile for", mEmail, "- falling back to email.");
+                        return { name: mEmail, email: mEmail };
+                      }
+                    });
+                    setTeamMembers(await Promise.all(memberPromises));
+                  }
+                });
+                
+              }
               if (data.Participants?.includes(userEmail)) {
                 setIsRegistered(true);
               } else if (data.paymentProofs?.some((proof: any) => proof.userEmail === userEmail)) {
@@ -166,7 +217,7 @@ const EventDetails: React.FC = () => {
           }
         } catch (error) {
           console.error('Error fetching event details:', error);
-          setError('Failed to load event details.');
+          setError('Failed to load event details: ' + (error instanceof Error ? error.message : String(error)));
         } finally {
           setLoading(false);
         }
@@ -177,6 +228,12 @@ const EventDetails: React.FC = () => {
       setError('Event ID is missing.');
       setLoading(false);
     }
+
+    return () => {
+      if (unsubscribeTeam) {
+        unsubscribeTeam();
+      }
+    };
   }, [id, userEmail]);
 
   const submitFeedback = async () => {
@@ -238,14 +295,32 @@ const EventDetails: React.FC = () => {
       const downloadURL = await getDownloadURL(storageRef);
       
       const eventRef = doc(db, 'event', id);
-      await updateDoc(eventRef, {
-        paymentProofs: arrayUnion({
-          userEmail,
-          proofURL: downloadURL,
-          storagePath: fileName,
-          timestamp: new Date()
-        })
-      });
+      const proofData: any = {
+        userEmail,
+        proofURL: downloadURL,
+        storagePath: fileName,
+        timestamp: new Date()
+      };
+      if (isTeamEvent && userTeam) {
+        proofData.teamCode = userTeam.teamCode;
+        
+        // Also update team status
+        const teamRef = doc(db, 'event', id, 'teams', userTeam.teamCode);
+        await updateDoc(teamRef, {
+          status: 'pending_verification',
+          paymentProofURL: downloadURL,
+          paymentStoragePath: fileName
+        });
+      }
+      
+
+      const updatePayload: any = {
+        paymentProofs: arrayUnion(proofData)
+      };
+      if (!isTeamEvent && eventData?.isFoodProvided && dietaryPreference) {
+        updatePayload[`dietaryPreferences.${userEmail.replace(/\./g, ',')}`] = dietaryPreference;
+      }
+      await updateDoc(eventRef, updatePayload);
       
       setRegisterMessage('Payment proof uploaded successfully! Your registration is pending verification.');
       setIsPendingVerification(true);
@@ -257,6 +332,97 @@ const EventDetails: React.FC = () => {
     }
   };
 
+
+  const handleRegisterAsLeader = async () => {
+    if (!userEmail || !id) return;
+    try {
+      const teamCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const teamRef = doc(db, 'event', id, 'teams', teamCode);
+      const newTeam = {
+        teamCode,
+        teamName: teamNameInput || `Team ${teamCode}`,
+        leaderEmail: userEmail,
+        members: [userEmail],
+        status: 'forming',
+        createdAt: new Date()
+      };
+      await setDoc(teamRef, newTeam);
+
+      if (eventData?.isFoodProvided && dietaryPreference) {
+        const eventRef = doc(db, 'event', id);
+        await updateDoc(eventRef, {
+          [`dietaryPreferences.${userEmail.replace(/\./g, ',')}`]: dietaryPreference
+        });
+      }
+
+      setUserTeam(newTeam);
+      setTeamMembers([userProfile]);
+    } catch (error: any) {
+      console.error("Error creating team:", error);
+      setRegisterMessage(`Error creating team: ${error.message}`);
+    }
+  };
+
+  const handleJoinTeamSubmit = async () => {
+    if (!userEmail || !id || !teamCodeInput) return;
+    try {
+      const teamRef = doc(db, 'event', id, 'teams', teamCodeInput);
+      const teamSnap = await getDoc(teamRef);
+      if (!teamSnap.exists()) {
+        setRegisterMessage("Invalid Team Code.");
+        return;
+      }
+      const teamData = teamSnap.data();
+      if (teamData.members.length >= (eventData?.maxTeamSize || 100)) {
+        setRegisterMessage("Team is already full.");
+        return;
+      }
+      if (teamData.status !== 'forming') {
+        setRegisterMessage("This team has already finalized registration.");
+        return;
+      }
+      
+      await updateDoc(teamRef, {
+        members: arrayUnion(userEmail)
+      });
+      
+      if (eventData?.isFoodProvided && dietaryPreference) {
+        const eventRef = doc(db, 'event', id);
+        await updateDoc(eventRef, {
+          [`dietaryPreferences.${userEmail.replace(/\./g, ',')}`]: dietaryPreference
+        });
+      }
+
+      // Refresh page or update state locally
+      const updatedTeam = { ...teamData, members: [...teamData.members, userEmail] };
+      setUserTeam(updatedTeam);
+      setTeamMembers([...teamMembers, userProfile]);
+      setJoinTeamMode(false);
+    } catch (error: any) {
+      console.error("Error joining team:", error);
+      setRegisterMessage(`Error joining team: ${error.message}`);
+    }
+  };
+
+  const handleFinalizeTeamFree = async () => {
+    if (!userEmail || !id || !userTeam) return;
+    try {
+      const eventRef = doc(db, 'event', id);
+      await updateDoc(eventRef, {
+        Participants: arrayUnion(...userTeam.members),
+      });
+      const teamRef = doc(db, 'event', id, 'teams', userTeam.teamCode);
+      await updateDoc(teamRef, {
+        status: 'registered'
+      });
+      setIsRegistered(true);
+      setRegisterMessage('Team successfully registered!');
+    } catch (error) {
+      console.error(error);
+      setRegisterMessage('Failed to register team.');
+    }
+  };
+
   const handleRegister = async () => {
     if (!userEmail || isEventClosed) {
       setRegisterMessage('Registration is closed for this event.');
@@ -265,9 +431,13 @@ const EventDetails: React.FC = () => {
 
     try {
       const docRef = doc(db, 'event', id!);
-      await updateDoc(docRef, {
+      const updatePayload: any = {
         Participants: arrayUnion(userEmail),
-      });
+      };
+      if (eventData?.isFoodProvided && dietaryPreference) {
+        updatePayload[`dietaryPreferences.${userEmail.replace(/\./g, ',')}`] = dietaryPreference;
+      }
+      await updateDoc(docRef, updatePayload);
       setRegisterMessage('Successfully registered!');
       setIsRegistered(true);
     } catch (error) {
@@ -333,6 +503,10 @@ const EventDetails: React.FC = () => {
             if (data.organiser) {
               fetchOrganizerData(data.organiser);
             }
+            
+            if (data.isTeamEvent) {
+              setIsTeamEvent(true);
+            }
   
             if (userEmail && data.Participants?.includes(userEmail)) {
               setIsRegistered(true);
@@ -369,7 +543,7 @@ const EventDetails: React.FC = () => {
           }
         } catch (error) {
           console.error('Error fetching event details:', error);
-          setError('Failed to load event details.');
+          setError('Failed to load event details: ' + (error instanceof Error ? error.message : String(error)));
         } finally {
           setLoading(false);
         }
@@ -384,27 +558,42 @@ const EventDetails: React.FC = () => {
 
   const handleUnregister = async () => {
     try {
-      // Show confirmation dialog before unregistering
-      const confirmUnregister = window.confirm(
-        'Are you sure you want to unregister from this event?'
-      );
-      
-      if (!confirmUnregister) return;
-  
       if (!userEmail || !id) {
         setRegisterMessage('Error: Missing user information');
         return;
       }
   
-      // Call Firestore to remove the user from Participants array
+      let confirmMsg = 'Are you sure you want to unregister from this event?';
+      if (eventData.paymentEnabled) {
+        confirmMsg = 'Are you sure you want to unregister? For refunds, please contact the event coordinators directly. Proceed with unregistration?';
+      }
+
+      const confirmUnregister = window.confirm(confirmMsg);
+      if (!confirmUnregister) return;
+  
       const eventRef = doc(db, 'event', id);
-      await updateDoc(eventRef, {
-        Participants: arrayRemove(userEmail),
-        // Also remove payment proof if exists
-        paymentProofs: arrayRemove({
-          userEmail: userEmail
-        })
-      });
+      
+      if (isTeamEvent && userTeam) {
+        if (userTeam.leaderEmail !== userEmail) {
+           setRegisterMessage("Only the team leader can unregister the team.");
+           return;
+        }
+        
+        await updateDoc(eventRef, {
+          Participants: arrayRemove(...userTeam.members),
+        });
+        
+        // Delete team doc or mark it cancelled
+        await deleteDoc(doc(db, 'event', id, 'teams', userTeam.teamCode));
+        setUserTeam(null);
+      } else {
+        await updateDoc(eventRef, {
+          Participants: arrayRemove(userEmail),
+          paymentProofs: arrayRemove({
+            userEmail: userEmail
+          })
+        });
+      }
   
       // Update local state
       setIsRegistered(false);
@@ -583,7 +772,7 @@ const EventDetails: React.FC = () => {
           <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
             {/* Registration Status Section */}
             <div className="mb-6 border-t pt-4">
-              {isRegistered ? (
+              {isRegistered && (
                 <div className="p-4 bg-green-50 border border-green-200 rounded-md">
                   <div className="text-center">
                     <p className="text-green-600 font-medium">
@@ -605,7 +794,7 @@ const EventDetails: React.FC = () => {
                     </div>
                   )}
 
-                  {!eventData.paymentEnabled && (
+                  {!isTeamEvent && (
                     <div className="mt-3 flex justify-center">
                       <button
                         className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md text-sm font-medium"
@@ -616,8 +805,10 @@ const EventDetails: React.FC = () => {
                     </div>
                   )}
                 </div>
-              ) : isPendingVerification ? (
-                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+              )}
+              
+              {isPendingVerification && (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md mb-6">
                   <div className="text-center">
                     <p className="text-yellow-700 font-medium">
                       Payment Proof Submitted
@@ -627,8 +818,172 @@ const EventDetails: React.FC = () => {
                     </p>
                   </div>
                 </div>
-              ) : !isEventClosed && eventData.registrationOpen !== false ? (
-                eventData.paymentEnabled ? (
+              )}
+
+              {isTeamEvent ? (
+                (userTeam || (!isRegistered && !isPendingVerification && !isEventClosed && eventData.registrationOpen !== false)) && (
+                  <div className="space-y-4">
+                    {userTeam ? (
+                      <div className="bg-white border rounded-lg p-5 shadow-sm">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-xl font-bold text-gray-800">Team: {userTeam.teamName || 'Your Team'}</h3>
+                          <div className="flex gap-2 items-center">
+                            <button 
+                              onClick={async () => {
+                                const teamSnap = await getDoc(doc(db, 'event', id!, 'teams', userTeam.teamCode));
+                                if (teamSnap.exists()) {
+                                  const td = teamSnap.data();
+                                  setUserTeam(td);
+                                  const memberPromises = td.members.map(async (mEmail: string) => {
+                                    try {
+                                      const uq = query(collection(db, 'users'), where("email", "==", mEmail));
+                                      const uSnap = await getDocs(uq);
+                                      return uSnap.empty ? { name: mEmail, email: mEmail } : uSnap.docs[0].data();
+                                    } catch { return { name: mEmail, email: mEmail }; }
+                                  });
+                                  setTeamMembers(await Promise.all(memberPromises));
+                                }
+                              }}
+                              className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full font-medium transition-colors"
+                            >
+                              ↻ Refresh Members
+                            </button>
+                            <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold flex items-center">
+                              Code: {userTeam.teamCode}
+                              <button 
+                                onClick={() => { navigator.clipboard.writeText(userTeam.teamCode); alert('Copied!'); }}
+                                className="ml-2 hover:text-blue-600"
+                              >
+                                <ClipboardDocumentIcon className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="mb-4">
+                          <h4 className="text-sm font-semibold text-gray-500 uppercase">Members ({userTeam.members.length}/{eventData.maxTeamSize})</h4>
+                          <ul className="mt-2 space-y-2">
+                            {teamMembers.map((m, idx) => (
+                              <li key={idx} className="flex items-center space-x-3 bg-gray-50 p-2 rounded">
+                                <div className="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 font-bold">
+                                  {m.name ? m.name.charAt(0).toUpperCase() : '?'}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-800">{m.name} {m.email === userTeam.leaderEmail ? '(Leader)' : ''}</p>
+                                  <p className="text-xs text-gray-500">{m.email}</p>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        
+                        {userTeam.status === 'forming' && userTeam.leaderEmail === userEmail && (
+                          <div className="mt-6 border-t pt-4">
+                            {userTeam.members.length < eventData.minTeamSize ? (
+                              <div className="text-amber-600 text-sm p-3 bg-amber-50 rounded">
+                                You need at least {eventData.minTeamSize} members to finalize registration. Share the team code for others to join!
+                              </div>
+                            ) : (
+                              <div>
+                                {eventData.paymentEnabled ? (
+                                  <>
+                                    <h3 className="text-lg font-medium mb-3">Team Payment</h3>
+                                    <p className="text-gray-700 mb-3">
+                                      Total for {userTeam.members.length} members: ₹{eventData.price * userTeam.members.length}
+                                    </p>
+                                    <div className="mb-3">
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">Upload Payment Screenshot</label>
+                                      {paymentScreenshotPreview ? (
+                                        <div className="relative mb-2">
+                                          <img src={paymentScreenshotPreview} alt="Preview" className="w-full max-h-48 object-contain border rounded" />
+                                          <button onClick={() => { setPaymentScreenshot(null); setPaymentScreenshotPreview(null); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center">×</button>
+                                        </div>
+                                      ) : (
+                                        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                            <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span></p>
+                                          </div>
+                                          <input type="file" className="hidden" accept="image/*" onChange={handlePaymentScreenshotChange}/>
+                                        </label>
+                                      )}
+                                    </div>
+                                    <button onClick={uploadPaymentProof} disabled={!paymentScreenshot || isUploadingPayment} className="w-full bg-green-600 text-white py-3 rounded-md font-medium">
+                                      {isUploadingPayment ? 'Processing...' : 'Submit Payment & Register Team'}
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button onClick={handleFinalizeTeamFree} className="w-full bg-[#246d8c] text-white py-3 rounded-md font-medium">
+                                    Finalize Team Registration
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {userTeam.status === 'forming' && userTeam.leaderEmail !== userEmail && (
+                          <div className="mt-4 text-center text-sm text-gray-600">
+                            Waiting for the team leader to finalize registration.
+                          </div>
+                        )}
+                        {userTeam.leaderEmail === userEmail ? (
+                          <div className="mt-4 text-center">
+                            <button onClick={handleUnregister} className="text-red-500 hover:text-red-700 text-sm font-medium">Unregister Team</button>
+                          </div>
+                        ) : (
+                          <div className="mt-4 text-center">
+                            <p className="text-gray-500 text-sm italic">Unregister can only be done by the team leader.</p>
+                          </div>
+                        )}
+                      </div>
+                    ) : joinTeamMode ? (
+                      <div className="bg-white border rounded-lg p-5 shadow-sm text-center">
+                        <h3 className="text-lg font-bold mb-4">Join a Team</h3>
+                        <input type="text" placeholder="Enter Team Code" value={teamCodeInput} onChange={e => setTeamCodeInput(e.target.value.toUpperCase())} className="w-full h-12 px-4 mb-4 border rounded focus:ring-2 outline-none uppercase text-center font-bold tracking-widest" />
+                        
+                        {eventData.isFoodProvided && (
+                          <div className="mb-4 text-left">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Your Dietary Preference *</label>
+                            <select value={dietaryPreference} onChange={e => setDietaryPreference(e.target.value as any)} className="w-full h-12 px-4 border rounded focus:ring-2 outline-none bg-white">
+                              <option value="">Select preference</option>
+                              <option value="Veg">Vegetarian</option>
+                              <option value="Non-Veg">Non-Vegetarian</option>
+                            </select>
+                          </div>
+                        )}
+
+                        <button onClick={handleJoinTeamSubmit} disabled={!teamCodeInput || (eventData.isFoodProvided && !dietaryPreference)} className="w-full bg-[#246d8c] text-white py-3 rounded-md font-medium mb-2 disabled:opacity-50">Join Team</button>
+                        <button onClick={() => setJoinTeamMode(false)} className="w-full bg-gray-100 text-gray-700 py-2 rounded-md font-medium">Cancel</button>
+                      </div>
+                    ) : createTeamMode ? (
+                      <div className="bg-white border rounded-lg p-5 shadow-sm text-center">
+                        <h3 className="text-lg font-bold mb-4">Create a Team</h3>
+                        <input type="text" placeholder="Enter Team Name" value={teamNameInput} onChange={e => setTeamNameInput(e.target.value)} className="w-full h-12 px-4 mb-4 border rounded focus:ring-2 outline-none text-center font-medium" />
+                        
+                        {eventData.isFoodProvided && (
+                          <div className="mb-4 text-left">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Your Dietary Preference *</label>
+                            <select value={dietaryPreference} onChange={e => setDietaryPreference(e.target.value as any)} className="w-full h-12 px-4 border rounded focus:ring-2 outline-none bg-white">
+                              <option value="">Select preference</option>
+                              <option value="Veg">Vegetarian</option>
+                              <option value="Non-Veg">Non-Vegetarian</option>
+                            </select>
+                          </div>
+                        )}
+
+                        <button onClick={handleRegisterAsLeader} disabled={!teamNameInput || (eventData.isFoodProvided && !dietaryPreference)} className="w-full bg-[#246d8c] text-white py-3 rounded-md font-medium mb-2 disabled:opacity-50">Confirm & Create Team</button>
+                        <button onClick={() => setCreateTeamMode(false)} className="w-full bg-gray-100 text-gray-700 py-2 rounded-md font-medium">Cancel</button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        <button onClick={() => setCreateTeamMode(true)} className="flex-1 bg-[#246d8c] hover:bg-[#1a4f63] text-white py-4 rounded-xl font-bold shadow-md transition-all">Create a Team (Leader)</button>
+                        <button onClick={() => setJoinTeamMode(true)} className="flex-1 bg-white border-2 border-[#246d8c] text-[#246d8c] hover:bg-blue-50 py-4 rounded-xl font-bold shadow-sm transition-all">Join a Team</button>
+                      </div>
+                    )}
+                  </div>
+                )
+              ) : !isRegistered && !isPendingVerification ? (
+                !isEventClosed && eventData.registrationOpen !== false ? (
+                  eventData.paymentEnabled ? (
       <>
         <h3 className="text-lg font-medium mb-3">Payment Information</h3>
         <p className="text-gray-700 mb-3">
@@ -675,12 +1030,23 @@ const EventDetails: React.FC = () => {
             </label>
           )}
         </div>
+        
+        {eventData.isFoodProvided && (
+          <div className="mb-4 text-left">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Your Dietary Preference *</label>
+            <select value={dietaryPreference} onChange={e => setDietaryPreference(e.target.value as any)} className="w-full h-12 px-4 border rounded focus:ring-2 outline-none bg-white">
+              <option value="">Select preference</option>
+              <option value="Veg">Vegetarian</option>
+              <option value="Non-Veg">Non-Vegetarian</option>
+            </select>
+          </div>
+        )}
 
         <button
           onClick={uploadPaymentProof}
-          disabled={!paymentScreenshot || isUploadingPayment}
+          disabled={!paymentScreenshot || isUploadingPayment || (eventData.isFoodProvided && !dietaryPreference)}
           className={`w-full py-3 rounded-md text-lg font-medium mb-4 ${
-            !paymentScreenshot || isUploadingPayment
+            !paymentScreenshot || isUploadingPayment || (eventData.isFoodProvided && !dietaryPreference)
               ? 'bg-gray-400 cursor-not-allowed'
               : 'bg-green-600 hover:bg-green-700 text-white'
           }`}
@@ -689,19 +1055,41 @@ const EventDetails: React.FC = () => {
         </button>
       </>
     ) : (
-      <button
-        className="w-full bg-[#246d8c] text-white py-3 rounded-md text-lg font-medium mb-4"
-        onClick={handleRegister}
-      >
-        Register
-      </button>
+      <>
+        {eventData.isFoodProvided && (
+          <div className="mb-4 text-left">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Your Dietary Preference *</label>
+            <select value={dietaryPreference} onChange={e => setDietaryPreference(e.target.value as any)} className="w-full h-12 px-4 border rounded focus:ring-2 outline-none bg-white">
+              <option value="">Select preference</option>
+              <option value="Veg">Vegetarian</option>
+              <option value="Non-Veg">Non-Vegetarian</option>
+            </select>
+          </div>
+        )}
+        <button
+          className={`w-full py-3 rounded-md text-lg font-medium mb-4 text-white ${
+            (eventData.isFoodProvided && !dietaryPreference) ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#246d8c]'
+          }`}
+          disabled={eventData.isFoodProvided && !dietaryPreference}
+          onClick={handleRegister}
+        >
+          Register
+        </button>
+      </>
     )
   ) : (
-    <div className="w-full bg-gray-400 text-white py-3 rounded-md text-lg font-medium mb-4 text-center cursor-not-allowed">
-      Registration Closed
-    </div>
-  )}
-</div>
+                  <div className="w-full bg-gray-400 text-white py-3 rounded-md text-lg font-medium mb-4 text-center cursor-not-allowed">
+                    Registration Closed
+                  </div>
+                )
+              ) : null}
+              
+              {(!isTeamEvent || !userTeam) && !isRegistered && !isPendingVerification && (isEventClosed || eventData.registrationOpen === false) && (
+                <div className="w-full bg-gray-400 text-white py-3 rounded-md text-lg font-medium mb-4 text-center cursor-not-allowed">
+                  Registration Closed
+                </div>
+              )}
+            </div>
 
             {registerMessage && <p className="text-center text-green-600 mb-4">{registerMessage}</p>}
 

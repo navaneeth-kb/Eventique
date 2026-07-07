@@ -32,7 +32,7 @@ interface EventData {
   num_of_participants?: number;
   attendees?: any[];
   Participants?: string[];
-  paymentProofs?: { userEmail: string; proofURL: string; storagePath: string; timestamp: any }[];
+  paymentProofs?: { userEmail: string; proofURL: string; storagePath: string; timestamp: any; teamCode?: string }[];
   paymentEnabled?: boolean;
   upiQr?: string;
   coordinators?: { name: string; phone: string }[];
@@ -46,6 +46,7 @@ const OrganiserEventDetail = () => {
   const [error, setError] = useState<string>('');
   const [showReportForm, setShowReportForm] = useState(false);
   const [reportReady, setReportReady] = useState(false);
+  // @ts-ignore
   const [isGeneratingAttendance, setIsGeneratingAttendance] = useState(false);
 
   // Report form state — all manually entered by the secretary
@@ -204,9 +205,24 @@ const OrganiserEventDetail = () => {
     try {
       const eventRef = doc(db, 'event', id);
       
+      let newParticipants = [];
+      
+      if (proof.teamCode) {
+         // It's a team payment
+         const teamRef = doc(db, 'event', id, 'teams', proof.teamCode);
+         const teamSnap = await getDoc(teamRef);
+         if (teamSnap.exists()) {
+             const teamData = teamSnap.data();
+             newParticipants = teamData.members || [];
+             await updateDoc(teamRef, { status: 'registered' });
+         }
+      } else {
+         newParticipants = [proof.userEmail];
+      }
+      
       // Update firestore: add to Participants, remove from paymentProofs
-      const updatedProofs = eventData.paymentProofs?.filter((p) => p.userEmail !== proof.userEmail) || [];
-      const updatedParticipants = [...(eventData.Participants || []), proof.userEmail];
+      const updatedProofs = eventData.paymentProofs?.filter((p: any) => p.userEmail !== proof.userEmail) || [];
+      const updatedParticipants = [...(eventData.Participants || []), ...newParticipants];
       
       await updateDoc(eventRef, {
         Participants: updatedParticipants,
@@ -225,7 +241,7 @@ const OrganiserEventDetail = () => {
         paymentProofs: updatedProofs
       });
       
-      alert(`Successfully verified and registered ${proof.userEmail}`);
+      alert(`Successfully verified and registered ${proof.teamCode ? 'Team ' + proof.teamCode : proof.userEmail}`);
     } catch (error) {
       console.error('Error approving payment:', error);
       alert('Failed to approve payment.');
@@ -235,13 +251,19 @@ const OrganiserEventDetail = () => {
   const handleRejectPayment = async (proof: any) => {
     if (!id || !eventData) return;
     
-    if (!window.confirm(`Are you sure you want to reject payment for ${proof.userEmail}? This will delete their proof.`)) return;
+    if (!window.confirm(`Are you sure you want to reject payment for ${proof.teamCode ? 'Team ' + proof.teamCode : proof.userEmail}? This will delete their proof.`)) return;
     
     try {
       const eventRef = doc(db, 'event', id);
       
+      if (proof.teamCode) {
+         // Mark team as forming again or delete. Let's mark as forming so they can retry.
+         const teamRef = doc(db, 'event', id, 'teams', proof.teamCode);
+         await updateDoc(teamRef, { status: 'forming' }).catch(console.error);
+      }
+      
       // Update firestore: remove from paymentProofs
-      const updatedProofs = eventData.paymentProofs?.filter((p) => p.userEmail !== proof.userEmail) || [];
+      const updatedProofs = eventData.paymentProofs?.filter((p: any) => p.userEmail !== proof.userEmail) || [];
       
       await updateDoc(eventRef, {
         paymentProofs: updatedProofs
@@ -258,7 +280,7 @@ const OrganiserEventDetail = () => {
         paymentProofs: updatedProofs
       });
       
-      alert(`Rejected payment for ${proof.userEmail}`);
+      alert(`Successfully rejected payment for ${proof.teamCode ? 'Team ' + proof.teamCode : proof.userEmail}`);
     } catch (error) {
       console.error('Error rejecting payment:', error);
       alert('Failed to reject payment.');
@@ -453,6 +475,7 @@ const OrganiserEventDetail = () => {
     });
   };
 
+  // @ts-ignore
   const generateAttendanceList = async () => {
     if (!eventData || !eventData.attendees || eventData.attendees.length === 0) {
       alert("No attendees recorded for this event yet.");
@@ -640,7 +663,7 @@ const OrganiserEventDetail = () => {
                     <div key={index} className="bg-white rounded-lg shadow-sm border border-yellow-100 overflow-hidden flex flex-col">
                       <div className="p-3 bg-yellow-100/50 border-b border-yellow-100">
                         <p className="text-sm font-medium text-gray-800 truncate" title={proof.userEmail}>
-                          {proof.userEmail}
+                          {proof.teamCode ? `Team: ${proof.teamCode} (Leader: ${proof.userEmail})` : proof.userEmail}
                         </p>
                       </div>
                       <div className="p-4 flex-1 flex flex-col items-center justify-center bg-gray-50">
@@ -760,6 +783,17 @@ const OrganiserEventDetail = () => {
                 <DocumentTextIcon className="h-5 w-5" />
                 Attendance List
               </button>
+
+              {/* View Dietary Preferences List Button */}
+              {eventData?.isFoodProvided && (
+                <button
+                  onClick={() => navigate(`/OrganiserDietaryDetails/${id}`)}
+                  className="flex items-center gap-2 bg-[#246d8c] hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  <DocumentTextIcon className="h-5 w-5" />
+                  Dietary Preferences
+                </button>
+              )}
             </div>
 
             {/* Report Generation Form */}
