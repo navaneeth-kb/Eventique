@@ -1,38 +1,45 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 // @ts-ignore
-import { db } from '../firebaseConfig';
+import { db, storage } from "../firebaseConfig";
+import { getDoc, doc, updateDoc, Timestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 
-interface EventData {
-  name: string;
-  organiser: string;
-  category: string;
-  venue: string;
-  event_Date: string;
-  poster: string;
-  logo?: string; // Add logo field
-}
-
-const OrganiserEditEvent = () => {
-  const { id } = useParams<{ id: string }>(); // Get event ID from URL
+const OrganiserEditEvent: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [eventData, setEventData] = useState<EventData>({
-    name: '',
-    organiser: '',
-    category: '',
-    venue: '',
-    event_Date: '',
-    poster: '',
-    logo: '',
-  });
+  
   const [loading, setLoading] = useState<boolean>(true);
+  const [updating, setUpdating] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string>('');
-  const [uploading, setUploading] = useState<boolean>(false);
+
+  const [posterFile, setPosterFile] = useState<File | null>(null);
+  const [posterPreview, setPosterPreview] = useState<string | null>(null);
+  const [originalPoster, setOriginalPoster] = useState<string | null>(null);
+
+  const [enablePayment, setEnablePayment] = useState<boolean>(false);
+  const [upiQrFile, setUpiQrFile] = useState<File | null>(null);
+  const [upiQrPreview, setUpiQrPreview] = useState<string | null>(null);
+  const [originalUpiQr, setOriginalUpiQr] = useState<string | null>(null);
+
+  const [enableWhatsapp, setEnableWhatsapp] = useState<boolean>(false);
+
+  const [eventData, setEventData] = useState({
+    category: "",
+    coordinator1: { name: "", phone: "" },
+    coordinator2: { name: "", phone: "" },
+    description: "",
+    duration: "",
+    event_date: "",
+    event_time: "",
+    name: "",
+    num_of_participants: "",
+    organiser: "",
+    venue: "",
+    price: "",
+    whatsappLink: "",
+  });
 
   useEffect(() => {
     if (!id) {
@@ -47,11 +54,37 @@ const OrganiserEditEvent = () => {
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-          const data = docSnap.data() as EventData;
-          setEventData(data);
-          if (data.logo) {
-            setLogoPreview(data.logo);
+          const data = docSnap.data();
+          
+          setEventData({
+            category: data.category || "",
+            coordinator1: data.coordinator1 || { name: "", phone: "" },
+            coordinator2: data.coordinator2 || { name: "", phone: "" },
+            description: data.description || "",
+            duration: data.duration || "",
+            event_date: data.event_date || data.event_Date || "",
+            event_time: data.event_time || "",
+            name: data.name || "",
+            num_of_participants: data.num_of_participants || "",
+            organiser: data.organiser || "",
+            venue: data.venue || "",
+            price: data.price || "",
+            whatsappLink: data.whatsappLink || "",
+          });
+
+          setEnablePayment(data.paymentEnabled || false);
+          setEnableWhatsapp(data.whatsappLinkEnabled || false);
+
+          if (data.poster) {
+            setPosterPreview(data.poster);
+            setOriginalPoster(data.poster);
           }
+
+          if (data.upiQr) {
+            setUpiQrPreview(data.upiQr);
+            setOriginalUpiQr(data.upiQr);
+          }
+
         } else {
           setError('Event not found.');
         }
@@ -66,66 +99,175 @@ const OrganiserEditEvent = () => {
     fetchEventDetails();
   }, [id]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setEventData({ ...eventData, [name]: value });
+  };
+
+  const handleCoordinatorChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    index: number
+  ) => {
+    const { name, value } = e.target;
+    const key = `coordinator${index + 1}`;
     setEventData({
       ...eventData,
-      [e.target.name]: e.target.value,
+      // @ts-ignore
+      [key]: { ...eventData[key as keyof typeof eventData], [name]: value },
     });
   };
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setLogoFile(file);
+  const handlePosterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const selectedFile = event.target.files[0];
+      setPosterFile(selectedFile);
       
-      // Create preview
       const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target && event.target.result) {
-          setLogoPreview(event.target.result as string);
-        }
+      reader.onload = (e) => {
+        setPosterPreview(e.target?.result as string);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(selectedFile);
     }
+  };
+
+  const handleUpiQrChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const selectedFile = event.target.files[0];
+      setUpiQrFile(selectedFile);
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setUpiQrPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(selectedFile);
+    }
+  };
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value) || 0;
+    // @ts-ignore
+    setEventData({ ...eventData, price: value });
+  };
+
+  const togglePaymentOption = () => {
+    const newPaymentState = !enablePayment;
+    setEnablePayment(newPaymentState);
+  };
+
+  const toggleWhatsappOption = () => {
+    const newState = !enableWhatsapp;
+    setEnableWhatsapp(newState);
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
     
-    setUploading(true);
-    
+    setUpdating(true);
+
     try {
-      let updatedData = {...eventData};
-      
-      // Upload logo if a new file was selected
-      if (logoFile) {
-        const storage = getStorage();
-        const logoRef = ref(storage, `event-logos/${id}-${logoFile.name}`);
-        await uploadBytes(logoRef, logoFile);
-        const logoUrl = await getDownloadURL(logoRef);
-        updatedData.logo = logoUrl;
+      let finalPosterURL = originalPoster;
+      let finalUpiQrURL = originalUpiQr;
+
+      // Handle new poster upload and old poster deletion
+      if (posterFile) {
+        // @ts-ignore
+        const posterRef = ref(storage, `eventPosters/${Date.now()}_${posterFile.name}`);
+        // @ts-ignore
+        const posterSnapshot = await uploadBytes(posterRef, posterFile);
+        finalPosterURL = await getDownloadURL(posterSnapshot.ref);
+
+        if (originalPoster) {
+          try {
+            const oldPosterRef = ref(storage, originalPoster);
+            await deleteObject(oldPosterRef);
+          } catch (err) {
+            console.error('Error deleting old poster:', err);
+          }
+        }
       }
-      
+
+      // Handle new UPI QR upload or deletion if payment disabled
+      if (enablePayment) {
+        if (upiQrFile) {
+          // @ts-ignore
+          const qrRef = ref(storage, `eventQRs/${Date.now()}_${upiQrFile.name}`);
+          // @ts-ignore
+          const qrSnapshot = await uploadBytes(qrRef, upiQrFile);
+          finalUpiQrURL = await getDownloadURL(qrSnapshot.ref);
+
+          if (originalUpiQr) {
+            try {
+              const oldQrRef = ref(storage, originalUpiQr);
+              await deleteObject(oldQrRef);
+            } catch (err) {
+              console.error('Error deleting old UPI QR:', err);
+            }
+          }
+        }
+      } else {
+        finalUpiQrURL = null; 
+        if (originalUpiQr) {
+           try {
+              const oldQrRef = ref(storage, originalUpiQr);
+              await deleteObject(oldQrRef);
+            } catch (err) {
+              console.error('Error deleting old UPI QR:', err);
+            }
+        }
+      }
+
+      let eventDateTimestamp;
+      try {
+        if (eventData.event_date && eventData.event_time) {
+           eventDateTimestamp = Timestamp.fromDate(new Date(eventData.event_date + "T" + eventData.event_time));
+        } else if (eventData.event_date) {
+           eventDateTimestamp = Timestamp.fromDate(new Date(eventData.event_date));
+        }
+      } catch (err) {
+         console.warn('Could not parse date', err);
+      }
+
       const eventRef = doc(db, 'event', id);
-      await updateDoc(eventRef, updatedData);
       
-      alert('Event updated successfully!');
-      navigate(`/OrganiserHomePage/${id}`); // Redirect back to event details page
+      const payload: any = {
+        ...eventData,
+        poster: finalPosterURL,
+        paymentEnabled: enablePayment,
+        price: enablePayment ? eventData.price : 0,
+        upiQr: finalUpiQrURL,
+        whatsappLinkEnabled: enableWhatsapp,
+        whatsappLink: enableWhatsapp ? eventData.whatsappLink : "",
+      };
+
+      if (eventDateTimestamp) {
+        payload.date = eventDateTimestamp;
+      }
+
+      await updateDoc(eventRef, payload);
+
+      alert("Event updated successfully!");
+      navigate(`/OrganiserHomePage/${id}`);
     } catch (error) {
-      console.error('Error updating event:', error);
-      alert('Failed to update event.');
+      console.error("Error updating event: ", error);
+      alert("An error occurred while updating the event.");
     } finally {
-      setUploading(false);
+      setUpdating(false);
     }
   };
 
-  if (loading) return <p>Loading event details...</p>;
-  if (error) return <p>{error}</p>;
+  if (loading) return (
+    <div className="flex justify-center items-center min-h-screen bg-[#e9f7f1]">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+    </div>
+  );
+  if (error) return <p className="text-center mt-10 text-red-500">{error}</p>;
 
   return (
-    <div className="min-h-screen bg-[#e9f7f1] p-4">
-      <div className="max-w-2xl mx-auto mb-4">
+    <div className="min-h-screen bg-[#e9f7f1] flex flex-col items-center p-4 pt-6 pb-20">
+      <div className="w-full max-w-2xl mb-2">
         <button 
           onClick={() => navigate(-1)}
           className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
@@ -134,135 +276,366 @@ const OrganiserEditEvent = () => {
           Back
         </button>
       </div>
-      <div className="max-w-2xl mx-auto p-6 bg-white shadow-md rounded-md">
-        <h2 className="text-2xl font-semibold mb-4">Edit Event</h2>
-      <form onSubmit={handleUpdate} className="space-y-4">
-        <div>
-          <label htmlFor="event-name" className="block text-sm font-medium">Event Name</label>
-          <input
-            id="event-name"
-            type="text"
-            name="name"
-            value={eventData.name}
-            onChange={handleChange}
-            className="w-full p-2 border rounded-md"
-            placeholder="Enter event name"
-            aria-label="Event Name"
-            required
-          />
+      {/* Page Title */}
+      <h2 className="text-2xl font-bold text-[#246d8c] mb-5 tracking-wide text-center">
+        Edit Event
+      </h2>
+
+      <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg overflow-hidden">
+        {/* Form Header */}
+        <div className="bg-[#246d8c] p-6 text-white">
+          <h3 className="text-xl font-bold">Event Details</h3>
+          <p className="text-blue-100 text-sm mt-1">Update the details of your event below</p>
         </div>
 
-        <div>
-          <label htmlFor="event-organiser" className="block text-sm font-medium">Organiser</label>
-          <input
-            id="event-organiser"
-            type="text"
-            name="organiser"
-            value={eventData.organiser}
-            onChange={handleChange}
-            className="w-full p-2 border rounded-md"
-            placeholder="Enter organiser name"
-            aria-label="Organiser"
-            required
-          />
-        </div>
-
-        <div>
-          <label htmlFor="event-category" className="block text-sm font-medium">Category</label>
-          <input
-            id="event-category"
-            type="text"
-            name="category"
-            value={eventData.category}
-            onChange={handleChange}
-            className="w-full p-2 border rounded-md"
-            placeholder="Enter event category"
-            aria-label="Category"
-            required
-          />
-        </div>
-
-        <div>
-          <label htmlFor="event-venue" className="block text-sm font-medium">Venue</label>
-          <input
-            id="event-venue"
-            type="text"
-            name="venue"
-            value={eventData.venue}
-            onChange={handleChange}
-            className="w-full p-2 border rounded-md"
-            placeholder="Enter event venue"
-            aria-label="Venue"
-            required
-          />
-        </div>
-
-        <div>
-          <label htmlFor="event-date" className="block text-sm font-medium">Event Date</label>
-          <input
-            id="event-date"
-            type="date"
-            name="event_Date"
-            value={eventData.event_Date}
-            onChange={handleChange}
-            className="w-full p-2 border rounded-md"
-            aria-label="Event Date"
-            required
-          />
-        </div>
-
-        <div>
-          <label htmlFor="event-poster" className="block text-sm font-medium">Poster URL</label>
-          <input
-            id="event-poster"
-            type="text"
-            name="poster"
-            value={eventData.poster}
-            onChange={handleChange}
-            className="w-full p-2 border rounded-md"
-            placeholder="Enter poster image URL"
-            aria-label="Poster URL"
-            required
-          />
-        </div>
-
-        {/* New Logo Upload Field */}
-        <div>
-          <label htmlFor="event-logo" className="block text-sm font-medium">Event Logo</label>
-          <div className="flex items-start space-x-4">
-            <div className="flex-1">
+        <div className="p-6">
+          <div className="mb-8">
+            <h4 className="text-lg font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200">Event Media</h4>
+            
+            <div className="w-full h-48 mb-4 bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl overflow-hidden relative transition-colors hover:border-[#246d8c]">
+              {posterPreview ? (
+                <div className="relative w-full h-full group">
+                  <img 
+                    src={posterPreview} 
+                    alt="Event poster preview" 
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <label 
+                      htmlFor="event-poster" 
+                      className="bg-white text-[#246d8c] px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-gray-100 shadow-md transition-transform transform hover:scale-105"
+                    >
+                      Change Poster
+                    </label>
+                  </div>
+                </div>
+              ) : (
+                <label
+                  htmlFor="event-poster"
+                  className="flex flex-col items-center justify-center cursor-pointer w-full h-full text-gray-400 hover:text-[#246d8c]"
+                >
+                  <div className="text-4xl mb-2">+</div>
+                  <div className="text-sm font-medium">Click to add event poster</div>
+                  <div className="text-xs mt-1 opacity-70">Recommended size: 1080x1080</div>
+                </label>
+              )}
               <input
-                id="event-logo"
+                id="event-poster"
                 type="file"
                 accept="image/*"
-                onChange={handleLogoChange}
-                className="w-full p-2 border rounded-md"
-                aria-label="Event Logo"
+                onChange={handlePosterChange}
+                className="hidden"
               />
-              <p className="text-sm text-gray-500 mt-1">Upload your event or organization logo</p>
             </div>
-            
-            {/* Logo Preview */}
-            {logoPreview && (
-              <div className="w-24 h-24 border rounded-md overflow-hidden flex items-center justify-center bg-gray-100">
-                <img 
-                  src={logoPreview} 
-                  alt="Logo preview" 
-                  className="max-w-full max-h-full object-contain" 
+          </div>
+
+          <h4 className="text-lg font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200">Basic Information</h4>
+          <form onSubmit={handleUpdate} className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Event Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  placeholder="e.g. Tech Symposium 2024"
+                  value={eventData.name}
+                  onChange={handleInputChange}
+                  className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
+                  required
                 />
               </div>
-            )}
-          </div>
-        </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <input
+                  type="text"
+                  name="category"
+                  placeholder="e.g. Workshop, Seminar"
+                  value={eventData.category}
+                  onChange={handleInputChange}
+                  className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
+                  required
+                />
+              </div>
+            </div>
 
-        <button 
-          type="submit" 
-          disabled={uploading}
-          className="w-full bg-blue-500 text-white py-2 rounded-md text-lg font-medium disabled:bg-blue-300"
-        >
-          {uploading ? 'Updating...' : 'Update Event'}
-        </button>
-      </form>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Organizer Name</label>
+              <input
+                type="text"
+                name="organiser"
+                value={eventData.organiser}
+                onChange={handleInputChange}
+                className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Venue</label>
+              <input
+                type="text"
+                name="venue"
+                placeholder="e.g. Main Auditorium"
+                value={eventData.venue}
+                onChange={handleInputChange}
+                className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                name="description"
+                placeholder="Provide a detailed description of the event..."
+                value={eventData.description}
+                onChange={handleInputChange}
+                className="w-full h-32 px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all resize-none"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Event Date</label>
+                <input
+                  type="date"
+                  name="event_date"
+                  value={eventData.event_date}
+                  onChange={handleInputChange}
+                  className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Event Time</label>
+                <input
+                  type="time"
+                  name="event_time"
+                  value={eventData.event_time}
+                  onChange={handleInputChange}
+                  className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
+                <input
+                  type="text"
+                  name="duration"
+                  placeholder="e.g. 2 Hours, 1 Day"
+                  value={eventData.duration}
+                  onChange={handleInputChange}
+                  className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Max Participants</label>
+                <input
+                  type="number"
+                  name="num_of_participants"
+                  placeholder="Leave empty for unlimited"
+                  value={eventData.num_of_participants}
+                  onChange={handleInputChange}
+                  className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <h4 className="text-lg font-semibold text-gray-700 mt-8 mb-4 pb-2 border-b border-gray-200">Coordinators</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-4 rounded-xl border border-gray-200">
+              <div>
+                <div className="text-md font-medium text-[#246d8c] mb-3">Coordinator 1</div>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Full Name"
+                    value={eventData.coordinator1.name}
+                    onChange={(e) => handleCoordinatorChange(e, 0)}
+                    className="w-full h-10 px-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] outline-none text-sm"
+                    required
+                  />
+                  <input
+                    type="tel"
+                    name="phone"
+                    placeholder="Phone Number (10 digits)"
+                    value={eventData.coordinator1.phone}
+                    onChange={(e) => handleCoordinatorChange(e, 0)}
+                    className="w-full h-10 px-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] outline-none text-sm"
+                    pattern="[0-9]{10}"
+                    title="Phone number must be exactly 10 digits"
+                    maxLength={10}
+                    minLength={10}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="text-md font-medium text-[#246d8c] mb-3">Coordinator 2 (Optional)</div>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Full Name"
+                    value={eventData.coordinator2.name}
+                    onChange={(e) => handleCoordinatorChange(e, 1)}
+                    className="w-full h-10 px-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] outline-none text-sm"
+                  />
+                  <input
+                    type="tel"
+                    name="phone"
+                    placeholder="Phone Number (10 digits)"
+                    value={eventData.coordinator2.phone}
+                    onChange={(e) => handleCoordinatorChange(e, 1)}
+                    className="w-full h-10 px-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] outline-none text-sm"
+                    pattern="[0-9]{10}"
+                    title="Phone number must be exactly 10 digits"
+                    maxLength={10}
+                    minLength={10}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <h4 className="text-lg font-semibold text-gray-700 mt-8 mb-4 pb-2 border-b border-gray-200">Registration & Payment</h4>
+
+            <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-md font-medium text-gray-800">Paid Event</div>
+                  <div className="text-sm text-gray-500 mt-1">Require participants to pay a fee to register</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={togglePaymentOption}
+                  className={`relative inline-flex items-center h-7 rounded-full w-12 transition-colors focus:outline-none ${
+                    enablePayment ? 'bg-[#246D8C]' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`${
+                      enablePayment ? 'translate-x-6' : 'translate-x-1'
+                    } inline-block w-5 h-5 transform bg-white rounded-full transition-transform shadow-sm`}
+                  />
+                </button>
+              </div>
+
+              {enablePayment && (
+                <div className="mt-5 pt-5 border-t border-gray-200">
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Upload UPI QR Code
+                    </label>
+                    <div className="flex items-center gap-4">
+                      {upiQrPreview && (
+                        <div className="w-24 h-24 border rounded-md overflow-hidden bg-gray-50 flex-shrink-0">
+                          <img src={upiQrPreview} alt="UPI QR Preview" className="w-full h-full object-contain" />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleUpiQrChange}
+                          className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#e9f7f1] file:text-[#246d8c] hover:file:bg-green-50"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Upload the QR code image for users to scan and pay.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-2">
+                    Event Registration Fee (₹)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-500 font-medium">₹</span>
+                    <input
+                      type="number"
+                      id="price"
+                      name="price"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={eventData.price}
+                      onChange={handlePriceChange}
+                      className="w-full h-12 pl-8 pr-4 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all font-medium"
+                      required={enablePayment}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 mt-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-md font-medium text-gray-800">WhatsApp Group</div>
+                  <div className="text-sm text-gray-500 mt-1">Provide a WhatsApp group link for participants to join after registering</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleWhatsappOption}
+                  className={`relative inline-flex items-center h-7 rounded-full w-12 transition-colors focus:outline-none ${
+                    enableWhatsapp ? 'bg-[#246D8C]' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`${
+                      enableWhatsapp ? 'translate-x-6' : 'translate-x-1'
+                    } inline-block w-5 h-5 transform bg-white rounded-full transition-transform shadow-sm`}
+                  />
+                </button>
+              </div>
+
+              {enableWhatsapp && (
+                <div className="mt-5 pt-5 border-t border-gray-200">
+                  <label htmlFor="whatsappLink" className="block text-sm font-medium text-gray-700 mb-2">
+                    WhatsApp Group Link
+                  </label>
+                  <input
+                    type="url"
+                    id="whatsappLink"
+                    name="whatsappLink"
+                    placeholder="https://chat.whatsapp.com/..."
+                    value={eventData.whatsappLink}
+                    onChange={handleInputChange}
+                    className="w-full h-12 px-4 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all font-medium"
+                    required={enableWhatsapp}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="pt-6 mt-6">
+              <button
+                type="submit"
+                disabled={updating}
+                className={`w-full py-4 text-white font-bold rounded-xl shadow-lg transition-all ${
+                  updating 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-[#246d8c] hover:bg-[#1a4f63] hover:shadow-xl transform hover:-translate-y-1'
+                }`}
+              >
+                {updating ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Updating...
+                  </span>
+                ) : "Update Event"}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
