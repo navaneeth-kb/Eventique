@@ -34,6 +34,7 @@ interface EventData {
   Participants?: string[];
   paymentProofs?: { userEmail: string; proofURL: string; storagePath: string; timestamp: any }[];
   paymentEnabled?: boolean;
+  upiQr?: string;
   coordinators?: { name: string; phone: string }[];
   description?: string;
 }
@@ -147,6 +148,16 @@ const OrganiserEventDetail = () => {
               console.error('Error deleting payment proof:', err);
             }
           }
+        }
+      }
+
+      // 4. Delete UPI QR Code if exists
+      if (eventData.upiQr) {
+        try {
+          const qrRef = ref(storage, eventData.upiQr);
+          await deleteObject(qrRef);
+        } catch (err) {
+          console.error('Error deleting UPI QR:', err);
         }
       }
 

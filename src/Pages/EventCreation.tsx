@@ -18,6 +18,8 @@ const CreateEvent: React.FC = () => {
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [enablePayment, setEnablePayment] = useState<boolean>(false);
   const [enableWhatsapp, setEnableWhatsapp] = useState<boolean>(false);
+  const [upiQrFile, setUpiQrFile] = useState<File | null>(null);
+  const [upiQrPreview, setUpiQrPreview] = useState<string | null>(null);
 
   const [eventData, setEventData] = useState({
     category: "",
@@ -136,6 +138,19 @@ const CreateEvent: React.FC = () => {
     setLogoPreviews(newLogoPreviews);
   };
 
+  const handleUpiQrChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const selectedFile = event.target.files[0];
+      setUpiQrFile(selectedFile);
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setUpiQrPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(selectedFile);
+    }
+  };
+
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value) || 0;
     // @ts-ignore
@@ -190,6 +205,15 @@ const CreateEvent: React.FC = () => {
         logoURLs.push(logoURL);
       }
 
+      let upiQrURL = null;
+      if (enablePayment && upiQrFile) {
+        // @ts-ignore
+        const qrRef = ref(storage, `eventQRs/${Date.now()}_${upiQrFile.name}`);
+        // @ts-ignore
+        const qrSnapshot = await uploadBytes(qrRef, upiQrFile);
+        upiQrURL = await getDownloadURL(qrSnapshot.ref);
+      }
+
       await addDoc(collection(db, "event"), {
         ...eventData,
         date: Timestamp.fromDate(
@@ -199,6 +223,7 @@ const CreateEvent: React.FC = () => {
         logos: logoURLs,
         paymentEnabled: enablePayment,
         price: enablePayment ? eventData.price : 0,
+        upiQr: upiQrURL,
         whatsappLinkEnabled: enableWhatsapp,
         whatsappLink: enableWhatsapp ? eventData.whatsappLink : "",
       });
@@ -518,6 +543,28 @@ const CreateEvent: React.FC = () => {
 
               {enablePayment && (
                 <div className="mt-5 pt-5 border-t border-gray-200">
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Upload UPI QR Code
+                    </label>
+                    <div className="flex items-center gap-4">
+                      {upiQrPreview && (
+                        <div className="w-24 h-24 border rounded-md overflow-hidden bg-gray-50 flex-shrink-0">
+                          <img src={upiQrPreview} alt="UPI QR Preview" className="w-full h-full object-contain" />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleUpiQrChange}
+                          className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#e9f7f1] file:text-[#246d8c] hover:file:bg-green-50"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Upload the QR code image for users to scan and pay.</p>
+                      </div>
+                    </div>
+                  </div>
+
                   <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-2">
                     Event Registration Fee (₹)
                   </label>
