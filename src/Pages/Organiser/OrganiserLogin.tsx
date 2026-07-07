@@ -37,7 +37,11 @@ const OrganiserLogin = () => {
 
       if (docSnap.exists()) {
         // Organiser found, navigate to the organiser dashboard
-        navigate('/OrganiserHomePage');
+        if (email === 'admin@eventique.com') {
+          navigate('/OrganiserHomePage/AdminDashboard');
+        } else {
+          navigate('/OrganiserHomePage');
+        }
       } else {
         console.error('No such user found in organizers');
         setError('No organiser account found with this email.');

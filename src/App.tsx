@@ -58,7 +58,11 @@ function StudentAuthRedirect({ user, children }: { user: User | null; children: 
           const orgRef = doc(db, 'organizers', user.email || '');
           const orgSnap = await getDoc(orgRef);
           if (orgSnap.exists()) {
-            setRedirectTo('/OrganiserHomePage');
+            if (user.email === 'admin@eventique.com') {
+              setRedirectTo('/OrganiserHomePage/AdminDashboard');
+            } else {
+              setRedirectTo('/OrganiserHomePage');
+            }
           } else {
             setRedirectTo('/additionalinfo');
           }
