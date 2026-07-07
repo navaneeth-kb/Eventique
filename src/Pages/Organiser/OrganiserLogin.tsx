@@ -1,11 +1,11 @@
 import { useState } from 'react';
 // @ts-ignore
-import { auth } from '../firebaseConfig';
+import { auth } from '../../firebaseConfig';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
-import logo from '../assets/logo.svg';
+import logo from '../../assets/logo.svg';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
 const OrganiserLogin = () => {

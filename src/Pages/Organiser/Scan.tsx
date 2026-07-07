@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { collection, getDocs, query, where, doc, updateDoc, arrayUnion, Timestamp } from "firebase/firestore";
 // @ts-ignore
-import { db } from "../firebaseConfig"; // Adjust the path as needed
+import { db } from "../../firebaseConfig"; // Adjust the path as needed
 import BarcodeScannerComponent from "react-qr-barcode-scanner"; // QR scanner
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { useNavigate } from "react-router-dom";

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 // @ts-ignore
-import { db, storage } from "../firebaseConfig";
+import { db, storage } from "../../firebaseConfig";
 import { getDoc, doc, updateDoc, Timestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';

@@ -3,7 +3,7 @@ import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 // @ts-ignore
-import { db } from '../firebaseConfig';
+import { db } from '../../firebaseConfig';
 import { 
   UserGroupIcon, 
   CalendarIcon, 

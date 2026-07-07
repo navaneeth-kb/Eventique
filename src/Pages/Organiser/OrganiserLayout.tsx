@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { HomeIcon, PlusIcon, CalendarIcon, UserIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import logo from '../assets/logo.svg';
+import logo from '../../assets/logo.svg';
 
 /**
  * Persistent layout wrapper for organiser-facing pages.

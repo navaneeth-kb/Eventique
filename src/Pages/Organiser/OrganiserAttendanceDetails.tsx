@@ -5,7 +5,7 @@ import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firesto
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 // @ts-ignore
-import { db } from '../firebaseConfig';
+import { db } from '../../firebaseConfig';
 
 interface Participant {
   email: string;

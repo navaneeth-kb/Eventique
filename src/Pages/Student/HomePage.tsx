@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { getFirestore, collection, getDocs } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { UserIcon, CalendarIcon } from '@heroicons/react/24/outline';
-import hi from '../assets/Home/hi.svg';
+import hi from '../../assets/Home/hi.svg';
 import { format } from 'date-fns';
 import { Link, useLocation } from 'react-router-dom';
 

@@ -15,7 +15,7 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getFirestore, doc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, setDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 // @ts-ignore
-import { storage } from "../firebaseConfig";
+import { storage } from "../../firebaseConfig";
 
 interface UserProfile {
   name: string;

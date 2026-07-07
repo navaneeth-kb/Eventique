@@ -14,7 +14,7 @@ import {
 import { doc, getDoc, deleteDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { ref, deleteObject } from 'firebase/storage';
 // @ts-ignore
-import { db, storage } from '../firebaseConfig';
+import { db, storage } from '../../firebaseConfig';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import hi from "../assets/Home/hi.svg";
+import hi from "../../assets/Home/hi.svg";
 import { doc, getDoc, getDocs, collection } from "firebase/firestore";
 // @ts-ignore
-import { auth, db } from "../firebaseConfig";
+import { auth, db } from "../../firebaseConfig";
 import { Link } from "react-router-dom";
 
 const EventSection: React.FC = () => {
