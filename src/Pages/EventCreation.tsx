@@ -119,6 +119,7 @@ const CreateEvent: React.FC = () => {
   };
 
 
+/*
   const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
       const selectedFile = event.target.files[0];
@@ -143,6 +144,7 @@ const CreateEvent: React.FC = () => {
     setLogoFiles(newLogoFiles);
     setLogoPreviews(newLogoPreviews);
   };
+*/
 
   const handleUpiQrChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {

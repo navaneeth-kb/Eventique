@@ -37,6 +37,7 @@ interface EventData {
   upiQr?: string;
   coordinators?: { name: string; phone: string }[];
   description?: string;
+  isFoodProvided?: boolean;
 }
 
 const OrganiserEventDetail = () => {

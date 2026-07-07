@@ -67,7 +67,6 @@ const EventDetails: React.FC = () => {
   });
   const [teamNameInput, setTeamNameInput] = useState<string>("");
   const [dietaryPreference, setDietaryPreference] = useState<"Veg" | "Non-Veg" | "">("");
-  const [showUnregisterConfirm, setShowUnregisterConfirm] = useState<boolean>(false);
 
   // Feedback States
   const [q1Rec, setQ1Rec] = useState<number | null>(null);
