@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { HomeIcon, PlusIcon, CalendarIcon, UserIcon } from '@heroicons/react/24/outline';
+import { HomeIcon, PlusIcon, CalendarIcon, UserIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import logo from '../assets/logo.svg';
 
@@ -15,6 +15,7 @@ const OrganiserLayout: React.FC = () => {
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 768);
   const [userName, setUserName] = useState<string | null>(null);
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 768);
@@ -28,9 +29,11 @@ const OrganiserLayout: React.FC = () => {
       if (user) {
         setUserName(user.displayName);
         setUserPhoto(user.photoURL);
+        setUserEmail(user.email);
       } else {
         setUserName('Organiser');
         setUserPhoto(null);
+        setUserEmail(null);
       }
     });
     return () => unsubscribe();
@@ -42,6 +45,7 @@ const OrganiserLayout: React.FC = () => {
     if (path.includes('/OrganiserProfile')) return 'profile';
     if (path.includes('/OrganiserCalendar')) return 'events';
     if (path.includes('/EventCreation')) return 'create';
+    if (path.includes('/AdminDashboard')) return 'admin';
     // Event detail pages and OrganiserHomePage itself are all under 'home'
     return 'home';
   };
@@ -62,6 +66,9 @@ const OrganiserLayout: React.FC = () => {
       case 'profile':
         navigate('/OrganiserProfile');
         break;
+      case 'admin':
+        navigate('/OrganiserHomePage/AdminDashboard');
+        break;
     }
   };
 
@@ -71,38 +78,42 @@ const OrganiserLayout: React.FC = () => {
         <img src={logo} alt="Eventique Logo" className="h-8 w-auto mt-0.5" />
         <div>
           <h1 className="text-2xl font-bold text-[#246D8C] leading-none">Eventique</h1>
-          <p className="text-xs text-gray-500 uppercase tracking-widest mt-1 font-semibold">Organiser</p>
+          <p className="text-xs text-gray-500 uppercase tracking-widest mt-1 font-semibold">{userEmail === 'admin@eventique.com' ? 'Admin' : 'Organiser'}</p>
         </div>
       </div>
       <nav className="flex-1">
         <ul className="space-y-2">
-          <li>
-            <button 
-              onClick={() => handleTabClick('home')} 
-              className={`flex items-center w-full p-3 rounded-lg transition-colors ${activeTab === 'home' ? 'bg-[#246D8C]/10 text-[#246D8C]' : 'text-gray-600 hover:bg-gray-100'}`}
-            >
-              <HomeIcon className="h-6 w-6 mr-3" />
-              <span className="font-medium">Home</span>
-            </button>
-          </li>
-          <li>
-            <button 
-              onClick={() => handleTabClick('create')} 
-              className={`flex items-center w-full p-3 rounded-lg transition-colors ${activeTab === 'create' ? 'bg-[#246D8C]/10 text-[#246D8C]' : 'text-gray-600 hover:bg-gray-100'}`}
-            >
-              <PlusIcon className="h-6 w-6 mr-3" />
-              <span className="font-medium">Create Event</span>
-            </button>
-          </li>
-          <li>
-            <button 
-              onClick={() => handleTabClick('events')} 
-              className={`flex items-center w-full p-3 rounded-lg transition-colors ${activeTab === 'events' ? 'bg-[#246D8C]/10 text-[#246D8C]' : 'text-gray-600 hover:bg-gray-100'}`}
-            >
-              <CalendarIcon className="h-6 w-6 mr-3" />
-              <span className="font-medium">Calendar</span>
-            </button>
-          </li>
+          {userEmail !== 'admin@eventique.com' && (
+            <>
+              <li>
+                <button 
+                  onClick={() => handleTabClick('home')} 
+                  className={`flex items-center w-full p-3 rounded-lg transition-colors ${activeTab === 'home' ? 'bg-[#246D8C]/10 text-[#246D8C]' : 'text-gray-600 hover:bg-gray-100'}`}
+                >
+                  <HomeIcon className="h-6 w-6 mr-3" />
+                  <span className="font-medium">Home</span>
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => handleTabClick('create')} 
+                  className={`flex items-center w-full p-3 rounded-lg transition-colors ${activeTab === 'create' ? 'bg-[#246D8C]/10 text-[#246D8C]' : 'text-gray-600 hover:bg-gray-100'}`}
+                >
+                  <PlusIcon className="h-6 w-6 mr-3" />
+                  <span className="font-medium">Create Event</span>
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => handleTabClick('events')} 
+                  className={`flex items-center w-full p-3 rounded-lg transition-colors ${activeTab === 'events' ? 'bg-[#246D8C]/10 text-[#246D8C]' : 'text-gray-600 hover:bg-gray-100'}`}
+                >
+                  <CalendarIcon className="h-6 w-6 mr-3" />
+                  <span className="font-medium">Calendar</span>
+                </button>
+              </li>
+            </>
+          )}
           <li>
             <button 
               onClick={() => handleTabClick('profile')} 
@@ -112,19 +123,30 @@ const OrganiserLayout: React.FC = () => {
               <span className="font-medium">Profile</span>
             </button>
           </li>
+          {userEmail === 'admin@eventique.com' && (
+            <li>
+              <button 
+                onClick={() => handleTabClick('admin')} 
+                className={`flex items-center w-full p-3 rounded-lg transition-colors ${activeTab === 'admin' ? 'bg-[#246D8C]/10 text-[#246D8C]' : 'text-gray-600 hover:bg-gray-100'}`}
+              >
+                <ShieldCheckIcon className="h-6 w-6 mr-3" />
+                <span className="font-medium">Admin</span>
+              </button>
+            </li>
+          )}
         </ul>
       </nav>
       <div className="mt-auto pt-6 border-t border-gray-200">
         <div className="flex items-center">
           {userPhoto ? (
-            <img src={userPhoto} alt={userName || 'Organiser'} className="w-10 h-10 rounded-full object-cover" />
+            <img src={userPhoto} alt={userName || (userEmail === 'admin@eventique.com' ? 'Admin' : 'Organiser')} className="w-10 h-10 rounded-full object-cover" />
           ) : (
             <div className="w-10 h-10 rounded-full bg-[#246D8C]/20 flex items-center justify-center text-[#246D8C] font-bold">
-              {userName ? userName.charAt(0) : 'O'}
+              {userName ? userName.charAt(0) : (userEmail === 'admin@eventique.com' ? 'A' : 'O')}
             </div>
           )}
           <div className="ml-3">
-            <p className="font-medium text-sm line-clamp-1">{userName || 'Organiser'}</p>
+            <p className="font-medium text-sm line-clamp-1">{userName || (userEmail === 'admin@eventique.com' ? 'Admin' : 'Organiser')}</p>
             <p className="text-xs text-gray-500">Dashboard</p>
           </div>
         </div>
@@ -134,34 +156,47 @@ const OrganiserLayout: React.FC = () => {
 
   const renderMobileNavigation = () => (
     <div className="fixed bottom-0 left-0 right-0 w-full bg-white flex justify-around items-center h-16 border-t border-gray-200 z-50">
-      <button 
-        onClick={() => handleTabClick('home')} 
-        className={`flex flex-col items-center p-2 w-1/4 ${activeTab === 'home' ? 'text-blue-500' : 'text-gray-600'}`}
-      >
-        <HomeIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-        <span className="text-xs sm:text-sm mt-1">Home</span>
-      </button>
-      <button 
-        onClick={() => handleTabClick('create')} 
-        className={`flex flex-col items-center p-2 w-1/4 ${activeTab === 'create' ? 'text-blue-500' : 'text-gray-600'}`}
-      >
-        <PlusIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-        <span className="text-xs sm:text-sm mt-1">Create</span>
-      </button>
-      <button 
-        onClick={() => handleTabClick('events')} 
-        className={`flex flex-col items-center p-2 w-1/4 ${activeTab === 'events' ? 'text-blue-500' : 'text-gray-600'}`}
-      >
-        <CalendarIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-        <span className="text-xs sm:text-sm mt-1">Events</span>
-      </button>
+      {userEmail !== 'admin@eventique.com' && (
+        <>
+          <button 
+            onClick={() => handleTabClick('home')} 
+            className={`flex flex-col items-center p-2 flex-1 ${activeTab === 'home' ? 'text-blue-500' : 'text-gray-600'}`}
+          >
+            <HomeIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+            <span className="text-xs sm:text-sm mt-1">Home</span>
+          </button>
+          <button 
+            onClick={() => handleTabClick('create')} 
+            className={`flex flex-col items-center p-2 flex-1 ${activeTab === 'create' ? 'text-blue-500' : 'text-gray-600'}`}
+          >
+            <PlusIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+            <span className="text-xs sm:text-sm mt-1">Create</span>
+          </button>
+          <button 
+            onClick={() => handleTabClick('events')} 
+            className={`flex flex-col items-center p-2 flex-1 ${activeTab === 'events' ? 'text-blue-500' : 'text-gray-600'}`}
+          >
+            <CalendarIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+            <span className="text-xs sm:text-sm mt-1">Events</span>
+          </button>
+        </>
+      )}
       <button 
         onClick={() => handleTabClick('profile')} 
-        className={`flex flex-col items-center p-2 w-1/4 ${activeTab === 'profile' ? 'text-blue-500' : 'text-gray-600'}`}
+        className={`flex flex-col items-center p-2 flex-1 ${activeTab === 'profile' ? 'text-blue-500' : 'text-gray-600'}`}
       >
         <UserIcon className="h-5 w-5 sm:h-6 sm:w-6" />
         <span className="text-xs sm:text-sm mt-1">Profile</span>
       </button>
+      {userEmail === 'admin@eventique.com' && (
+        <button 
+          onClick={() => handleTabClick('admin')} 
+          className={`flex flex-col items-center p-2 flex-1 ${activeTab === 'admin' ? 'text-blue-500' : 'text-gray-600'}`}
+        >
+          <ShieldCheckIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+          <span className="text-xs sm:text-sm mt-1">Admin</span>
+        </button>
+      )}
     </div>
   );
 
@@ -174,7 +209,7 @@ const OrganiserLayout: React.FC = () => {
           <img src={logo} alt="Eventique Logo" className="h-6 w-auto mr-2" />
           <div className="flex flex-col justify-center">
             <h1 className="text-lg font-bold text-[#246D8C] leading-none">Eventique</h1>
-            <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5 font-semibold">Organiser</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5 font-semibold">{userEmail === 'admin@eventique.com' ? 'Admin' : 'Organiser'}</p>
           </div>
         </div>
       )}

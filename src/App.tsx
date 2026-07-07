@@ -30,6 +30,7 @@ import Scan from './Pages/Scan';
 import Months from './Pages/Months';
 import OrganiserCalendar from './Pages/OrganiserCalendar';
 import OrganiserLogin from './Pages/OrganiserLogin';
+import AdminDashboard from './Pages/AdminDashboard';
 
 /**
  * Redirects authenticated students away from login/signup pages.
@@ -235,6 +236,7 @@ function App() {
           <Route path="/OrganiserProfile" element={<OrganiserProfile />} />
           <Route path="/OrganiserHomePage/:id" element={<OrganiserEventDetail />} />
           <Route path="/OrganiserCalendar" element={<OrganiserCalendar />} />
+          <Route path="/OrganiserHomePage/AdminDashboard" element={<AdminDashboard />} />
         </Route>
       </Routes>
     </Router>
