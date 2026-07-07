@@ -214,6 +214,7 @@ const CreateEvent: React.FC = () => {
         posterURL = await getDownloadURL(posterSnapshot.ref);
       }
       
+      /*
       for (let i = 0; i < logoFiles.length; i++) {
         const logoFile = logoFiles[i];
         // @ts-ignore
@@ -223,6 +224,7 @@ const CreateEvent: React.FC = () => {
         const logoURL = await getDownloadURL(logoSnapshot.ref);
         logoURLs.push(logoURL);
       }
+      */
 
       let upiQrURL = null;
       if (enablePayment && upiQrFile) {
