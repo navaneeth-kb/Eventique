@@ -48,6 +48,8 @@ const CreateEvent: React.FC = () => {
     maxTeamSize: "",
     isOvernight: false,
     isFoodProvided: false,
+    event_end_time: "",
+    autoCertificateGen: true,
   });
 
   useEffect(() => {
@@ -448,11 +450,22 @@ const CreateEvent: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Event Time</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
                 <input
                   type="time"
                   name="event_time"
                   value={eventData.event_time}
+                  onChange={handleInputChange}
+                  className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                <input
+                  type="time"
+                  name="event_end_time"
+                  value={eventData.event_end_time}
                   onChange={handleInputChange}
                   className="w-full h-12 px-4 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] focus:border-transparent outline-none transition-all"
                   required
@@ -580,6 +593,26 @@ const CreateEvent: React.FC = () => {
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                       eventData.isFoodProvided ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between mt-4">
+                <div>
+                  <h4 className="font-semibold text-gray-800">Auto Certificate Generation</h4>
+                  <p className="text-sm text-gray-500">Allow Eventique to automatically generate certificates for participants?</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEventData({...eventData, autoCertificateGen: !eventData.autoCertificateGen})}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    eventData.autoCertificateGen ? 'bg-[#246D8C]' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      eventData.autoCertificateGen ? 'translate-x-6' : 'translate-x-1'
                     }`}
                   />
                 </button>

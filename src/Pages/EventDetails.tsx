@@ -769,9 +769,22 @@ const EventDetails: React.FC = () => {
 
           {/* Registration & Feedback Sections wrapper */}
           <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+            
+            {eventData.isOvernight && !isEventClosed && (
+              <div className="mb-6 p-4 bg-indigo-50 border-l-4 border-indigo-500 rounded-r-md flex items-start shadow-sm">
+                <span className="text-xl mr-3" role="img" aria-label="moon">🌙</span>
+                <div>
+                  <h4 className="font-bold text-indigo-900">Overnight Event</h4>
+                  <p className="text-indigo-800 text-sm mt-1">
+                    This event spans across multiple days/nights. Please ensure you bring necessary clothes, toiletries, and other essential items.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Registration Status Section */}
             <div className="mb-6 border-t pt-4">
-              {isRegistered && (
+              {isRegistered && !isEventClosed && (
                 <div className="p-4 bg-green-50 border border-green-200 rounded-md">
                   <div className="text-center">
                     <p className="text-green-600 font-medium">
@@ -793,7 +806,7 @@ const EventDetails: React.FC = () => {
                     </div>
                   )}
 
-                  {!isTeamEvent && (
+                  {!isTeamEvent && !isEventClosed && (
                     <div className="mt-3 flex justify-center">
                       <button
                         className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md text-sm font-medium"
@@ -925,9 +938,11 @@ const EventDetails: React.FC = () => {
                           </div>
                         )}
                         {userTeam.leaderEmail === userEmail ? (
-                          <div className="mt-4 text-center">
-                            <button onClick={handleUnregister} className="text-red-500 hover:text-red-700 text-sm font-medium">Unregister Team</button>
-                          </div>
+                          !isEventClosed && (
+                            <div className="mt-4 text-center">
+                              <button onClick={handleUnregister} className="text-red-500 hover:text-red-700 text-sm font-medium">Unregister Team</button>
+                            </div>
+                          )
                         ) : (
                           <div className="mt-4 text-center">
                             <p className="text-gray-500 text-sm italic">Unregister can only be done by the team leader.</p>
@@ -1241,13 +1256,14 @@ const EventDetails: React.FC = () => {
   </div>
 )}
 
-            {/* Certificate Section - Only show if event is closed */}
-            {isEventClosed && (
+            {/* Certificate Section - Only show if event is closed and feedback is submitted */}
+            {isEventClosed && feedbackSubmitted && (
               <div className="mt-4 border-t pt-4 w-full">
                 <h3 className="text-xl font-medium mb-4">Certificate</h3>
                 
                 {isPresent ? (
-                  <>
+                  eventData.autoCertificateGen !== false ? (
+                    <>
                     <div className="mb-4">
                       <label htmlFor="certificate-name" className="block text-sm font-medium text-gray-700 mb-2">
                         Full Name for Certificate
@@ -1289,6 +1305,16 @@ const EventDetails: React.FC = () => {
                       Download Certificate
                     </button>
                   </>
+                  ) : (
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
+                      <p className="text-gray-700 font-medium">
+                        The organiser will provide the certificate separately.
+                      </p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Please contact the event coordinator for more information.
+                      </p>
+                    </div>
+                  )
                 ) : isRegistered ? (
                   <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md text-center">
                     <p className="text-amber-600 font-medium">
@@ -1309,8 +1335,8 @@ const EventDetails: React.FC = () => {
             )}
           </div>
 
-          {/* Certificate Preview - Only show if event is closed and user is present */}
-          {isEventClosed && isPresent && (
+          {/* Certificate Preview - Only show if event is closed, user is present, and feedback is submitted */}
+          {isEventClosed && isPresent && feedbackSubmitted && eventData.autoCertificateGen !== false && (
             <div className="w-full max-w-5xl mx-auto mt-6">
               <h3 className="text-lg font-medium text-gray-700 mb-4 text-center">Certificate Preview</h3>
               
