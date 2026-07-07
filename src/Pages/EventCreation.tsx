@@ -13,8 +13,10 @@ const CreateEvent: React.FC = () => {
   const [organizerName, setOrganizerName] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [file, setFile] = useState<File | null>(null);
+  /* 
   const [logoFiles, setLogoFiles] = useState<File[]>([]);
   const [logoPreviews, setLogoPreviews] = useState<string[]>([]);
+  */
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [enablePayment, setEnablePayment] = useState<boolean>(false);
   const [enableWhatsapp, setEnableWhatsapp] = useState<boolean>(false);
