@@ -87,6 +87,12 @@ const EventDetails: React.FC = () => {
   const db = getFirestore();
   const auth = getAuth();
 
+  const currentParticipantsCount = eventData?.Participants?.length || 0;
+  const maxParticipants = eventData?.num_of_participants ? parseInt(eventData.num_of_participants) : Infinity;
+  const isEventFull = currentParticipantsCount >= maxParticipants;
+  const remainingSlots = Math.max(0, maxParticipants - currentParticipantsCount);
+  const effectiveMaxTeamSize = eventData?.isTeamEvent ? Math.min(eventData.maxTeamSize || 100, remainingSlots) : 0;
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user && user.email) {
@@ -292,6 +298,18 @@ const EventDetails: React.FC = () => {
   const uploadPaymentProof = async () => {
     if (!paymentScreenshot || !userEmail || !id || isEventClosed) return;
 
+    if (isTeamEvent && userTeam) {
+      if (currentParticipantsCount + userTeam.members.length > maxParticipants) {
+        setRegisterMessage('Sorry, this event does not have enough capacity for your entire team.');
+        return;
+      }
+    } else {
+      if (isEventFull) {
+        setRegisterMessage('Sorry, this event has reached its maximum capacity.');
+        return;
+      }
+    }
+
     setIsUploadingPayment(true);
     try {
       const fileName = `payment_proofs/${id}_${userEmail}_${Date.now()}.${paymentScreenshot.name.split('.').pop()}`;
@@ -341,6 +359,12 @@ const EventDetails: React.FC = () => {
 
   const handleRegisterAsLeader = async () => {
     if (!userEmail || !id) return;
+
+    if (1 > remainingSlots) {
+      setRegisterMessage('Sorry, this event has reached its maximum capacity. You cannot create a team.');
+      return;
+    }
+
     try {
       const teamCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       const teamRef = doc(db, 'event', id, 'teams', teamCode);
@@ -378,9 +402,15 @@ const EventDetails: React.FC = () => {
         setRegisterMessage("Invalid Team Code.");
         return;
       }
+
+      if (currentParticipantsCount + 1 > maxParticipants) {
+        setRegisterMessage('Sorry, this event has reached its maximum capacity. You cannot join this team.');
+        return;
+      }
+
       const teamData = teamSnap.data();
-      if (teamData.members.length >= (eventData?.maxTeamSize || 100)) {
-        setRegisterMessage("Team is already full.");
+      if (teamData.members.length >= effectiveMaxTeamSize) {
+        setRegisterMessage(`Team is already full or event capacity reached. Maximum allowed is ${effectiveMaxTeamSize}.`);
         return;
       }
       if (teamData.status !== 'forming') {
@@ -412,6 +442,12 @@ const EventDetails: React.FC = () => {
 
   const handleFinalizeTeamFree = async () => {
     if (!userEmail || !id || !userTeam) return;
+
+    if (userTeam.members.length > remainingSlots) {
+      setRegisterMessage(`Sorry, this event only has ${remainingSlots} slots remaining, which is not enough for your team of ${userTeam.members.length}.`);
+      return;
+    }
+
     try {
       const eventRef = doc(db, 'event', id);
       await updateDoc(eventRef, {
@@ -432,6 +468,11 @@ const EventDetails: React.FC = () => {
   const handleRegister = async () => {
     if (!userEmail || isEventClosed) {
       setRegisterMessage('Registration is closed for this event.');
+      return;
+    }
+
+    if (isEventFull) {
+      setRegisterMessage('Sorry, this event has reached its maximum capacity.');
       return;
     }
 
@@ -847,8 +888,13 @@ const EventDetails: React.FC = () => {
               )}
 
               {isTeamEvent ? (
-                (userTeam || (!isRegistered && !isPendingVerification && !isEventClosed && eventData.registrationOpen !== false)) && (
+                (userTeam || (!isRegistered && !isPendingVerification && !isEventClosed && eventData.registrationOpen !== false && !isEventFull)) && (
                   <div className="space-y-4">
+                    {!isRegistered && remainingSlots > 0 && remainingSlots <= 10 && (
+                       <div className="text-amber-600 font-medium text-center bg-amber-50 p-2 rounded-md">
+                         Hurry! Only {remainingSlots} slots remaining in this event!
+                       </div>
+                    )}
                     {userTeam ? (
                       <div className="bg-white border rounded-lg p-5 shadow-sm">
                         <div className="flex justify-between items-center mb-4">
@@ -887,7 +933,7 @@ const EventDetails: React.FC = () => {
                         </div>
                         
                         <div className="mb-4">
-                          <h4 className="text-sm font-semibold text-gray-500 uppercase">Members ({userTeam.members.length}/{eventData.maxTeamSize})</h4>
+                          <h4 className="text-sm font-semibold text-gray-500 uppercase">Members ({userTeam.members.length}/{effectiveMaxTeamSize})</h4>
                           <ul className="mt-2 space-y-2">
                             {teamMembers.map((m, idx) => (
                               <li key={idx} className="flex items-center space-x-3 bg-gray-50 p-2 rounded">
@@ -1002,15 +1048,23 @@ const EventDetails: React.FC = () => {
                         <button onClick={() => setCreateTeamMode(false)} className="w-full bg-gray-100 text-gray-700 py-2 rounded-md font-medium">Cancel</button>
                       </div>
                     ) : (
-                      <div className="flex flex-col sm:flex-row gap-4">
-                        <button onClick={() => setCreateTeamMode(true)} className="flex-1 bg-[#246d8c] hover:bg-[#1a4f63] text-white py-4 rounded-xl font-bold shadow-md transition-all">Create a Team (Leader)</button>
-                        <button onClick={() => setJoinTeamMode(true)} className="flex-1 bg-white border-2 border-[#246d8c] text-[#246d8c] hover:bg-blue-50 py-4 rounded-xl font-bold shadow-sm transition-all">Join a Team</button>
+                      <div className="bg-white border rounded-lg p-5 shadow-sm">
+                        <div className="mb-4 text-center">
+                          <h3 className="text-xl font-bold text-gray-800">Team Registration</h3>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Team size limit for this event: {eventData.minTeamSize} - {effectiveMaxTeamSize} members
+                          </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-4">
+                          <button onClick={() => setCreateTeamMode(true)} className="flex-1 bg-[#246d8c] hover:bg-[#1a4f63] text-white py-4 rounded-xl font-bold shadow-md transition-all">Create a Team (Leader)</button>
+                          <button onClick={() => setJoinTeamMode(true)} className="flex-1 bg-white border-2 border-[#246d8c] text-[#246d8c] hover:bg-blue-50 py-4 rounded-xl font-bold shadow-sm transition-all">Join a Team</button>
+                        </div>
                       </div>
                     )}
                   </div>
                 )
               ) : !isRegistered && !isPendingVerification ? (
-                !isEventClosed && eventData.registrationOpen !== false ? (
+                !isEventClosed && eventData.registrationOpen !== false && !isEventFull ? (
                   eventData.paymentEnabled ? (
       <>
         <h3 className="text-lg font-medium mb-3">Payment Information</h3>
@@ -1107,14 +1161,14 @@ const EventDetails: React.FC = () => {
     )
   ) : (
                   <div className="w-full bg-gray-400 text-white py-3 rounded-md text-lg font-medium mb-4 text-center cursor-not-allowed">
-                    Registration Closed
+                    {isEventFull ? 'Registration Full' : 'Registration Closed'}
                   </div>
                 )
               ) : null}
               
-              {(!isTeamEvent || !userTeam) && !isRegistered && !isPendingVerification && (isEventClosed || eventData.registrationOpen === false) && (
+              {(!isTeamEvent || !userTeam) && !isRegistered && !isPendingVerification && (isEventClosed || eventData.registrationOpen === false || isEventFull) && (
                 <div className="w-full bg-gray-400 text-white py-3 rounded-md text-lg font-medium mb-4 text-center cursor-not-allowed">
-                  Registration Closed
+                  {isEventFull ? 'Registration Full' : 'Registration Closed'}
                 </div>
               )}
             </div>

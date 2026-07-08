@@ -70,6 +70,10 @@ const HomePage: React.FC = () => {
         const organiserEmail = data.organiser || '';
         const organiserName = organizersMap[organiserEmail] || organiserEmail;
 
+        const currentParticipantsCount = data.Participants?.length || 0;
+        const maxParticipants = data.num_of_participants ? parseInt(data.num_of_participants) : Infinity;
+        const isEventFull = currentParticipantsCount >= maxParticipants;
+
         return {
           id: eventId,
           ...data,
@@ -79,12 +83,13 @@ const HomePage: React.FC = () => {
           isClosed,
           isHidden: data.isHidden || false,
           registrationOpen: data.registrationOpen !== false,
+          isEventFull,
           userAttended,
           isRegistered
         };
       }).filter((event) => !event.isHidden);
 
-      const current = eventsData.filter(event => !event.isClosed && event.registrationOpen !== false);
+      const current = eventsData.filter(event => !event.isClosed && event.registrationOpen !== false && !event.isEventFull);
       const registered = eventsData.filter(event => !event.isClosed && event.isRegistered);
       const past = eventsData.filter(event => event.isClosed && event.userAttended);
 
@@ -133,7 +138,7 @@ const HomePage: React.FC = () => {
     };
 
     if (activeEventTab === 'current') {
-      setCurrentEvents(filterEvents(events.filter(event => !event.isClosed && event.registrationOpen !== false)));
+      setCurrentEvents(filterEvents(events.filter(event => !event.isClosed && event.registrationOpen !== false && !event.isEventFull)));
     } else if (activeEventTab === 'registered') {
       setRegisteredEvents(filterEvents(events.filter(event => !event.isClosed && event.isRegistered)));
     } else {

@@ -238,10 +238,23 @@ const OrganiserEventDetail = () => {
          if (teamSnap.exists()) {
              const teamData = teamSnap.data();
              newParticipants = teamData.members || [];
-             await updateDoc(teamRef, { status: 'registered' });
          }
       } else {
          newParticipants = [proof.userEmail];
+      }
+      
+      const currentCount = eventData.Participants?.length || 0;
+      const maxCount = eventData.num_of_participants ? parseInt(eventData.num_of_participants.toString()) : Infinity;
+      
+      if (currentCount + newParticipants.length > maxCount) {
+        if (!window.confirm(`Approving this payment will exceed the maximum participant limit (${currentCount + newParticipants.length} > ${maxCount}). Proceed anyway?`)) {
+          return;
+        }
+      }
+
+      if (proof.teamCode) {
+         const teamRef = doc(db, 'event', id, 'teams', proof.teamCode);
+         await updateDoc(teamRef, { status: 'registered' });
       }
       
       // Update firestore: add to Participants, remove from paymentProofs
