@@ -52,7 +52,13 @@ function StudentAuthRedirect({ user, children }: { user: User | null; children: 
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-          setRedirectTo('/HomePage');
+          const pendingRedirect = localStorage.getItem('eventique_redirect');
+          if (pendingRedirect) {
+            localStorage.removeItem('eventique_redirect');
+            setRedirectTo(pendingRedirect);
+          } else {
+            setRedirectTo('/HomePage');
+          }
         } else {
           // If they are an organiser, don't redirect them to additional info, they shouldn't be here
           const orgRef = doc(db, 'organizers', user.email || '');
@@ -184,13 +190,23 @@ function EventLoginRedirect() {
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [authInitialized, setAuthInitialized] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      setAuthInitialized(true);
     });
     return () => unsubscribe();
   }, []);
+
+  if (!authInitialized) {
+    return (
+      <div className="min-h-screen bg-[#e9f7f1] flex items-center justify-center">
+        <div className="w-16 h-16 border-4 border-[#246d8c] border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <Router>
