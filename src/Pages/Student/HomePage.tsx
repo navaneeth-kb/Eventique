@@ -78,12 +78,13 @@ const HomePage: React.FC = () => {
           rawDate: eventDate,
           isClosed,
           isHidden: data.isHidden || false,
+          registrationOpen: data.registrationOpen !== false,
           userAttended,
           isRegistered
         };
       }).filter((event) => !event.isHidden);
 
-      const current = eventsData.filter(event => !event.isClosed);
+      const current = eventsData.filter(event => !event.isClosed && event.registrationOpen !== false);
       const registered = eventsData.filter(event => !event.isClosed && event.isRegistered);
       const past = eventsData.filter(event => event.isClosed && event.userAttended);
 
@@ -132,7 +133,7 @@ const HomePage: React.FC = () => {
     };
 
     if (activeEventTab === 'current') {
-      setCurrentEvents(filterEvents(events.filter(event => !event.isClosed)));
+      setCurrentEvents(filterEvents(events.filter(event => !event.isClosed && event.registrationOpen !== false)));
     } else if (activeEventTab === 'registered') {
       setRegisteredEvents(filterEvents(events.filter(event => !event.isClosed && event.isRegistered)));
     } else {

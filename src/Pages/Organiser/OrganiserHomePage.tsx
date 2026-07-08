@@ -42,6 +42,7 @@ const EventSection: React.FC = () => {
               id: doc.id,
               ...data,
               isHidden: data.isHidden || false,
+              registrationOpen: data.registrationOpen !== false,
               isClosed,
               event_date: data.event_date || data.event_Date || data['Event Date'],
               event_time: data.event_time || data.eventTime
@@ -154,11 +155,15 @@ const EventSection: React.FC = () => {
                         e.target.src = "https://via.placeholder.com/300?text=Event+Image";
                       }}
                     />
-                    {event.isClosed && (
-                      <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-md">
+                    {event.isClosed ? (
+                      <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-md shadow-md">
                         Closed
                       </div>
-                    )}
+                    ) : event.registrationOpen === false ? (
+                      <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-md shadow-md">
+                        Reg. Closed
+                      </div>
+                    ) : null}
                   </div>
                   <h4 className="text-lg font-semibold text-center line-clamp-1">{event.name}</h4>
                   <p className="text-gray-600 text-sm text-center line-clamp-1">{event.organiser}</p>

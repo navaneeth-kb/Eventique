@@ -200,6 +200,29 @@ const OrganiserEventDetail = () => {
     }
   };
 
+  const handleToggleRegistration = async () => {
+    if (!id || !eventData) return;
+    
+    const newStatus = eventData.registrationOpen === false ? true : false;
+    const confirmAction = window.confirm(`Are you sure you want to ${newStatus ? 'open' : 'close'} registration for this event?`);
+    if (!confirmAction) return;
+    
+    try {
+      const eventRef = doc(db, 'event', id);
+      await updateDoc(eventRef, {
+        registrationOpen: newStatus
+      });
+      setEventData({
+        ...eventData,
+        registrationOpen: newStatus
+      });
+      alert(`Registration ${newStatus ? 'opened' : 'closed'} successfully!`);
+    } catch (error) {
+      console.error('Error toggling registration:', error);
+      alert("Failed to change registration status.");
+    }
+  };
+
   const handleApprovePayment = async (proof: any) => {
     if (!id || !eventData) return;
     
@@ -736,6 +759,16 @@ const OrganiserEventDetail = () => {
                 >
                   <LockClosedIcon className="h-5 w-5" />
                   Close Event
+                </button>
+              )}
+
+              {eventData.status !== 'closed' && (
+                <button
+                  onClick={handleToggleRegistration}
+                  className="flex items-center gap-2 bg-[#246d8c] hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  <LockClosedIcon className="h-5 w-5" />
+                  {eventData.registrationOpen === false ? "Open Registration" : "Close Registration"}
                 </button>
               )}
 
