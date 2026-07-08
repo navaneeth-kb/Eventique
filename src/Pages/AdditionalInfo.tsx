@@ -91,7 +91,7 @@ const ProfileCompletion: React.FC = () => {
           placeholder="Phone number"
           value={phoneNumber}
           onChange={(e) => setPhoneNumber(e.target.value)}
-          className="w-[380px] h-12 px-4 py-[13px] rounded-md border text-base font-normal"
+          className="w-full h-12 px-4 py-[13px] rounded-md border border-gray-300 focus:outline-none focus:border-[#246d8c] text-base font-normal"
         />
 
         <Dropdown
@@ -134,7 +134,7 @@ const ProfileCompletion: React.FC = () => {
           placeholder="University ID"
           value={universityID}
           onChange={(e) => setUniversityID(e.target.value)}
-          className="w-[380px] h-12 px-4 py-[13px] rounded-md border text-base font-normal"
+          className="w-full h-12 px-4 py-[13px] rounded-md border border-gray-300 focus:outline-none focus:border-[#246d8c] text-base font-normal"
         />
 
         <button
