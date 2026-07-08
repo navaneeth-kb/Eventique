@@ -150,6 +150,13 @@ const EventDetails: React.FC = () => {
 
           if (docSnap.exists()) {
             const data = docSnap.data();
+
+            if (data.isHidden) {
+              setError('This event is currently hidden by the organizer.');
+              setLoading(false);
+              return;
+            }
+
             setEventData(data);
             setIsEventClosed(data.status === 'closed');
 
@@ -496,6 +503,13 @@ const EventDetails: React.FC = () => {
   
           if (docSnap.exists()) {
             const data = docSnap.data();
+
+            if (data.isHidden) {
+              setError('This event is currently hidden by the organizer.');
+              setLoading(false);
+              return;
+            }
+
             setEventData(data);
             setIsEventClosed(data.status === 'closed');
   

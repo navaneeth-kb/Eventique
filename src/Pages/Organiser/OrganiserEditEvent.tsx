@@ -46,6 +46,7 @@ const OrganiserEditEvent: React.FC = () => {
     isFoodProvided: false,
     event_end_time: "",
     autoCertificateGen: true,
+    isHidden: false,
   });
 
   useEffect(() => {
@@ -84,6 +85,7 @@ const OrganiserEditEvent: React.FC = () => {
             isFoodProvided: data.isFoodProvided || false,
             event_end_time: data.event_end_time || "",
             autoCertificateGen: data.autoCertificateGen !== undefined ? data.autoCertificateGen : true,
+            isHidden: data.isHidden || false,
           });
 
           setEnablePayment(data.paymentEnabled || false);
@@ -268,6 +270,7 @@ const OrganiserEditEvent: React.FC = () => {
         maxTeamSize: eventData.isTeamEvent ? parseInt(eventData.maxTeamSize as string) || 0 : 0,
         isOvernight: eventData.isOvernight,
         isFoodProvided: eventData.isFoodProvided,
+        isHidden: eventData.isHidden,
       };
 
       if (eventDateTimestamp) {
@@ -599,6 +602,26 @@ const OrganiserEditEvent: React.FC = () => {
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                       eventData.autoCertificateGen ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between mt-4">
+                <div>
+                  <h4 className="font-semibold text-gray-800">Hide from Students</h4>
+                  <p className="text-sm text-gray-500">Hide this event from the student homepage? (Can still be accessed via direct link if you share it)</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEventData({...eventData, isHidden: !eventData.isHidden})}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    eventData.isHidden ? 'bg-[#246D8C]' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      eventData.isHidden ? 'translate-x-6' : 'translate-x-1'
                     }`}
                   />
                 </button>

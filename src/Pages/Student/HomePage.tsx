@@ -80,7 +80,7 @@ const HomePage: React.FC = () => {
           userAttended,
           isRegistered
         };
-      });
+      }).filter((event) => !event.isHidden);
 
       const current = eventsData.filter(event => !event.isClosed);
       const registered = eventsData.filter(event => !event.isClosed && event.isRegistered);

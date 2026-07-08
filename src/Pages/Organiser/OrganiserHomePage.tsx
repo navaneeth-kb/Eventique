@@ -10,8 +10,9 @@ const EventSection: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [activeEvents, setActiveEvents] = useState<any[]>([]);
   const [closedEvents, setClosedEvents] = useState<any[]>([]);
+  const [hiddenEvents, setHiddenEvents] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [eventFilter, setEventFilter] = useState<'active' | 'closed'>('active');
+  const [eventFilter, setEventFilter] = useState<'active' | 'closed' | 'hidden'>('active');
 
   useEffect(() => {
     const fetchOrganizerData = async () => {
@@ -49,15 +50,18 @@ const EventSection: React.FC = () => {
           .filter((event) => event.organiser === user.email)
           .map((event) => ({ ...event, organiser: currentOrgName }));
 
-        const active = userEvents.filter(event => !event.isClosed);
-        const closed = userEvents.filter(event => event.isClosed);
+        const active = userEvents.filter(event => !event.isClosed && !event.isHidden);
+        const closed = userEvents.filter(event => event.isClosed && !event.isHidden);
+        const hidden = userEvents.filter(event => event.isHidden);
 
         setActiveEvents(active);
         setClosedEvents(closed);
+        setHiddenEvents(hidden);
       } else {
         setOrganizerName("Guest");
         setActiveEvents([]);
         setClosedEvents([]);
+        setHiddenEvents([]);
       }
 
       setLoading(false);
@@ -66,8 +70,8 @@ const EventSection: React.FC = () => {
     fetchOrganizerData();
   }, []);
 
-  // Filter events based on search query and active/closed filter
-  const filteredEvents = (eventFilter === 'active' ? activeEvents : closedEvents)
+  // Filter events based on search query and active/closed/hidden filter
+  const filteredEvents = (eventFilter === 'active' ? activeEvents : eventFilter === 'closed' ? closedEvents : hiddenEvents)
     .filter((event) => event.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
@@ -111,6 +115,12 @@ const EventSection: React.FC = () => {
           >
             Closed Events
           </button>
+          <button
+            className={`py-2 px-6 font-medium ${eventFilter === 'hidden' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setEventFilter('hidden')}
+          >
+            Hidden Events
+          </button>
         </div>
       </div>
 
@@ -122,7 +132,7 @@ const EventSection: React.FC = () => {
           </div>
         ) : filteredEvents.length === 0 ? (
           <div className="flex justify-center p-4">
-            <p>No {eventFilter === 'active' ? 'active' : 'closed'} events found</p>
+            <p>No {eventFilter} events found</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
