@@ -530,7 +530,7 @@ const CreateEvent: React.FC = () => {
                       type="number"
                       name="minTeamSize"
                       placeholder="e.g. 2"
-                      min="2"
+                      min="1"
                       value={eventData.minTeamSize}
                       onChange={handleInputChange}
                       className="w-full h-12 px-4 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] outline-none transition-all"
@@ -543,7 +543,7 @@ const CreateEvent: React.FC = () => {
                       type="number"
                       name="maxTeamSize"
                       placeholder="e.g. 4"
-                      min={eventData.minTeamSize || "2"}
+                      min={eventData.minTeamSize || "1"}
                       value={eventData.maxTeamSize}
                       onChange={handleInputChange}
                       className="w-full h-12 px-4 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] outline-none transition-all"
