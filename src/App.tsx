@@ -138,6 +138,7 @@ function OrganiserProtectedRoute({ user, children }: { user: User | null; childr
 function StudentProtectedRoute({ user, children }: { user: User | null; children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
   const [isStudent, setIsStudent] = useState(false);
+  const [redirectTo, setRedirectTo] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -147,18 +148,28 @@ function StudentProtectedRoute({ user, children }: { user: User | null; children
 
     const checkRole = async () => {
       try {
+        const db = getFirestore();
+        
         if (user.email) {
-          const db = getFirestore();
           const orgRef = doc(db, 'organizers', user.email);
           const orgSnap = await getDoc(orgRef);
           
           if (orgSnap.exists()) {
             setIsStudent(false); // They are an organiser, not a student
-          } else {
-            setIsStudent(true);
+            setChecking(false);
+            return;
           }
-        } else {
+        }
+        
+        // Not an organiser. Check if they have completed their profile.
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
           setIsStudent(true);
+        } else {
+          setIsStudent(false);
+          setRedirectTo('/additionalinfo');
         }
       } catch (error) {
         setIsStudent(false);
@@ -174,7 +185,10 @@ function StudentProtectedRoute({ user, children }: { user: User | null; children
       <div className="w-16 h-16 border-4 border-[#246d8c] border-t-transparent rounded-full animate-spin"></div>
     </div>
   );
+  
+  if (redirectTo) return <Navigate to={redirectTo} />;
   if (!user || !isStudent) return <Navigate to="/login" />;
+  
   return <>{children}</>;
 }
 
