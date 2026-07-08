@@ -77,6 +77,7 @@ const HomePage: React.FC = () => {
           Event_Date: formattedDate,
           rawDate: eventDate,
           isClosed,
+          isHidden: data.isHidden || false,
           userAttended,
           isRegistered
         };

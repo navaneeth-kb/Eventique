@@ -41,6 +41,7 @@ const EventSection: React.FC = () => {
             return {
               id: doc.id,
               ...data,
+              isHidden: data.isHidden || false,
               isClosed,
               event_date: data.event_date || data.event_Date || data['Event Date'],
               event_time: data.event_time || data.eventTime
