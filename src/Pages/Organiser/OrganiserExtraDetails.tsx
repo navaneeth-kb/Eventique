@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 // @ts-ignore
@@ -19,6 +19,7 @@ interface Participant {
   year: number;
   teamCode?: string;
   teamName?: string;
+  isEmptySlot?: boolean;
 }
 
 const OrganiserExtraDetails = () => {
@@ -27,7 +28,10 @@ const OrganiserExtraDetails = () => {
   const [loading, setLoading] = useState(true);
   const [eventName, setEventName] = useState('');
   const [isTeamEvent, setIsTeamEvent] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const navigate = useNavigate();
+
+  const triggerRefresh = () => setRefreshKey(prev => prev + 1);
 
   useEffect(() => {
     const fetchParticipants = async () => {
@@ -44,21 +48,31 @@ const OrganiserExtraDetails = () => {
           const isTeam = eventData.isTeamEvent || false;
           setIsTeamEvent(isTeam);
           
-          let emailToTeamMap: Record<string, {teamCode: string, teamName: string}> = {};
+          let emailToTeamMap: Record<string, {teamCode: string, teamName: string, intendedSize: number, members: string[]}> = {};
+          let teamDetails: Record<string, {teamCode: string, teamName: string, intendedSize: number, members: string[], leaderEmail: string}> = {};
+
           if (isTeam) {
             const teamsRef = collection(db, 'event', id, 'teams');
             const teamSnaps = await getDocs(teamsRef);
             teamSnaps.forEach(doc => {
               const td = doc.data();
+              teamDetails[td.teamCode] = {
+                 teamCode: td.teamCode,
+                 teamName: td.teamName || `Team ${td.teamCode}`,
+                 intendedSize: td.intendedSize || 2,
+                 members: td.members || [],
+                 leaderEmail: td.leaderEmail
+              };
               if (td.members) {
                  td.members.forEach((m: string) => {
-                   emailToTeamMap[m] = { teamCode: td.teamCode, teamName: td.teamName || `Team ${td.teamCode}` };
+                   emailToTeamMap[m] = { teamCode: td.teamCode, teamName: td.teamName || `Team ${td.teamCode}`, intendedSize: td.intendedSize || 2, members: td.members || [] };
                  });
               }
             });
           }
           
           const participantEmails = eventData.Participants || [];
+          let participantData: Participant[] = [];
           
           if (participantEmails.length > 0) {
             const usersCollection = collection(db, 'users');
@@ -110,18 +124,50 @@ const OrganiserExtraDetails = () => {
                   division: 'N/A',
                   gender: 'N/A',
                   year: 0,
-                    teamCode: emailToTeamMap[email]?.teamCode || 'N/A',
-                    teamName: emailToTeamMap[email]?.teamName || 'N/A',
+                  teamCode: emailToTeamMap[email]?.teamCode || 'N/A',
+                  teamName: emailToTeamMap[email]?.teamName || 'N/A',
                 };
               }
             });
             
-            const participantData = await Promise.all(participantPromises);
-            if (isTeam) {
-              participantData.sort((a, b) => (a.teamName || '').localeCompare(b.teamName || ''));
-            }
-            setParticipants(participantData);
+            participantData = await Promise.all(participantPromises);
           }
+
+          if (isTeam) {
+            Object.values(teamDetails).forEach(team => {
+              const currentMembersCount = team.members.length;
+              const emptySlotsCount = Math.max(0, team.intendedSize - currentMembersCount);
+              for (let i = 0; i < emptySlotsCount; i++) {
+                 participantData.push({
+                   email: `empty-${team.teamCode}-${i}`,
+                   name: 'Empty Slot',
+                   phoneNumber: '-',
+                   uid: '-',
+                   batch: '-',
+                   branch: '-',
+                   division: '-',
+                   gender: '-',
+                   year: 0,
+                   teamCode: team.teamCode,
+                   teamName: team.teamName,
+                   isEmptySlot: true,
+                 });
+              }
+            });
+            
+            participantData.sort((a, b) => {
+               const tA = a.teamName || '';
+               const tB = b.teamName || '';
+               if (tA === tB) {
+                  if (a.isEmptySlot && !b.isEmptySlot) return 1;
+                  if (!a.isEmptySlot && b.isEmptySlot) return -1;
+                  return 0;
+               }
+               return tA.localeCompare(tB);
+            });
+          }
+          
+          setParticipants(participantData);
         }
       } catch (error) {
         console.error('Error fetching participants:', error);
@@ -131,7 +177,176 @@ const OrganiserExtraDetails = () => {
     };
 
     fetchParticipants();
-  }, [id]);
+  }, [id, refreshKey]);
+
+  const verifyAuthCode = async (code: string) => {
+    try {
+      const q = query(collection(db, 'users'), where('authCode', '==', code));
+      const querySnapshot = await getDocs(q);
+      if (querySnapshot.empty) {
+        return null;
+      }
+      const userDoc = querySnapshot.docs[0];
+      const userData = userDoc.data();
+      const expiry = userData.authCodeExpiry?.toDate();
+      if (!expiry || expiry < new Date()) {
+        return null; // expired
+      }
+      return { email: userData.email || userDoc.id, uid: userData.uid, name: userData.name };
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  };
+
+  const handleAddParticipant = async () => {
+    const code = prompt("Enter the 6-digit authorization code from the student:");
+    if (!code) return;
+    
+    setLoading(true);
+    const student = await verifyAuthCode(code);
+    if (!student) {
+      alert("Invalid or expired authorization code.");
+      setLoading(false);
+      return;
+    }
+    
+    if (participants.some(p => p.email === student.email)) {
+      alert("Student is already registered for this event.");
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      const eventRef = doc(db, 'event', id as string);
+      await updateDoc(eventRef, {
+        Participants: arrayUnion(student.email)
+      });
+      alert(`Successfully added ${student.name} to the event!`);
+      triggerRefresh();
+    } catch (e) {
+      console.error(e);
+      alert("Error adding participant.");
+      setLoading(false);
+    }
+  };
+
+  const handleAddTeamMember = async (teamCode: string) => {
+    const code = prompt(`Enter the 6-digit authorization code from the student to add them to team ${teamCode}:`);
+    if (!code) return;
+    
+    setLoading(true);
+    const student = await verifyAuthCode(code);
+    if (!student) {
+      alert("Invalid or expired authorization code.");
+      setLoading(false);
+      return;
+    }
+    
+    if (participants.some(p => p.email === student.email)) {
+      alert("Student is already registered for this event.");
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      const teamRef = doc(db, 'event', id as string, 'teams', teamCode);
+      await updateDoc(teamRef, {
+        members: arrayUnion(student.email)
+      });
+      const eventRef = doc(db, 'event', id as string);
+      await updateDoc(eventRef, {
+        Participants: arrayUnion(student.email)
+      });
+      alert(`Successfully added ${student.name} to the team!`);
+      triggerRefresh();
+    } catch (e) {
+      console.error(e);
+      alert("Error adding team member.");
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteParticipant = async (email: string, teamCode?: string) => {
+    const code = prompt(`Enter the authorization code for ${email} to confirm deletion:`);
+    if (!code) return;
+    
+    setLoading(true);
+    const student = await verifyAuthCode(code);
+    if (!student || student.email !== email) {
+      alert("Invalid or expired authorization code, or the code does not belong to this student.");
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      if (teamCode && teamCode !== 'N/A') {
+        const teamRef = doc(db, 'event', id as string, 'teams', teamCode);
+        const teamSnap = await getDoc(teamRef);
+        if (teamSnap.exists()) {
+           const td = teamSnap.data();
+           let newMembers = (td.members || []).filter((m: string) => m !== email);
+           
+           if (newMembers.length === 0) {
+              // Delete team if empty
+              await deleteDoc(teamRef);
+           } else {
+              let updatePayload: any = { members: arrayRemove(email) };
+              if (td.leaderEmail === email) {
+                 updatePayload.leaderEmail = newMembers[0]; // Reassign leader
+              }
+              await updateDoc(teamRef, updatePayload);
+           }
+        }
+      }
+      
+      const eventRef = doc(db, 'event', id as string);
+      await updateDoc(eventRef, {
+        Participants: arrayRemove(email)
+      });
+      
+      alert(`Successfully removed ${email} from the event!`);
+      triggerRefresh();
+    } catch (e) {
+      console.error(e);
+      alert("Error removing participant.");
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteTeam = async (teamCode: string, leaderEmail?: string) => {
+    const code = prompt(`To delete this entire team, enter the authorization code for the Team Leader (${leaderEmail || 'Unknown'}):`);
+    if (!code) return;
+    
+    setLoading(true);
+    const student = await verifyAuthCode(code);
+    if (!student || (leaderEmail && student.email !== leaderEmail)) {
+      alert("Invalid or expired authorization code, or the code does not belong to the Team Leader.");
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      const teamRef = doc(db, 'event', id as string, 'teams', teamCode);
+      const teamSnap = await getDoc(teamRef);
+      if (teamSnap.exists()) {
+         const td = teamSnap.data();
+         const eventRef = doc(db, 'event', id as string);
+         for (const m of (td.members || [])) {
+            await updateDoc(eventRef, {
+              Participants: arrayRemove(m)
+            });
+         }
+         await deleteDoc(teamRef);
+      }
+      alert(`Successfully deleted team ${teamCode}!`);
+      triggerRefresh();
+    } catch (e) {
+      console.error(e);
+      alert("Error deleting team.");
+      setLoading(false);
+    }
+  };
 
   const downloadPDF = () => {
     const doc = new jsPDF();
@@ -148,9 +363,7 @@ const OrganiserExtraDetails = () => {
     // Add participant count
     doc.text(`Total Participants: ${participants.length}`, 14, 35);
     
-    // Prepare data for the table
-    
-    const tableData = participants.map(participant => {
+    const tableData = participants.filter(p => !p.isEmptySlot).map(participant => {
       const row = [
         participant.name,
         participant.email,
@@ -235,16 +448,26 @@ const OrganiserExtraDetails = () => {
             {eventName} - Participant Details ({participants.length})
           </h1>
         </div>
-        <button
-          onClick={downloadPDF}
-          disabled={participants.length === 0}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg ${participants.length === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
-          aria-label="Export participant list to PDF"
-          title="Export PDF"
-        >
-          <ArrowDownTrayIcon className="h-5 w-5" aria-hidden="true" />
-          <span>Export PDF</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleAddParticipant}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-sm transition-colors"
+            title="Manually Add Participant"
+          >
+            <span className="font-bold">+</span>
+            <span className="hidden sm:inline">Add Participant</span>
+          </button>
+          <button
+            onClick={downloadPDF}
+            disabled={participants.filter(p => !p.isEmptySlot).length === 0}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg ${participants.filter(p => !p.isEmptySlot).length === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+            aria-label="Export participant list to PDF"
+            title="Export PDF"
+          >
+            <ArrowDownTrayIcon className="h-5 w-5" aria-hidden="true" />
+            <span className="hidden sm:inline">Export PDF</span>
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -262,6 +485,7 @@ const OrganiserExtraDetails = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Division</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -279,28 +503,64 @@ const OrganiserExtraDetails = () => {
                   }
 
                   return (
-                    <tr key={index} className="hover:bg-gray-50 border-b border-gray-100">
+                    <tr key={index} className={`border-b border-gray-100 ${participant.isEmptySlot ? 'bg-gray-50/50' : 'hover:bg-gray-50'}`}>
                       {isTeamEvent && isFirstInTeam && (
                         <td rowSpan={teamMembersCount} className="px-6 py-4 whitespace-nowrap align-top border-r border-gray-200 bg-blue-50/30">
-                          <div className="font-bold text-[#246d8c]">{participant.teamName}</div>
-                          <div className="text-xs text-gray-500 mt-1 font-mono">{participant.teamCode}</div>
+                          <div className="flex flex-col justify-between h-full min-h-[40px]">
+                            <div>
+                              <div className="font-bold text-[#246d8c]">{participant.teamName}</div>
+                              <div className="text-xs text-gray-500 mt-1 font-mono">{participant.teamCode}</div>
+                            </div>
+                            {participant.teamCode && participant.teamCode !== 'N/A' && (
+                              <button 
+                                onClick={() => handleDeleteTeam(participant.teamCode as string)} 
+                                className="text-red-500 hover:text-red-700 text-xs font-semibold mt-2 text-left transition-colors"
+                              >
+                                Delete Team
+                              </button>
+                            )}
+                          </div>
                         </td>
                       )}
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{participant.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.email}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.phoneNumber}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.uid}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.batch}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.branch}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.division}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.gender}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.year}</td>
+                      {participant.isEmptySlot ? (
+                        <td colSpan={10} className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 italic">
+                          <div className="flex items-center justify-between w-full">
+                            <span>Empty Slot</span>
+                            <button 
+                              onClick={() => handleAddTeamMember(participant.teamCode as string)} 
+                              className="text-blue-600 hover:text-blue-800 text-xs font-semibold not-italic px-3 py-1 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
+                            >
+                              + Add Member
+                            </button>
+                          </div>
+                        </td>
+                      ) : (
+                        <>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{participant.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.email}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.phoneNumber}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.uid}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.batch}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.branch}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.division}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.gender}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.year}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button 
+                              onClick={() => handleDeleteParticipant(participant.email, participant.teamCode)} 
+                              className="text-red-600 hover:text-red-900 px-2 py-1 hover:bg-red-50 rounded transition-colors"
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </>
+                      )}
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={isTeamEvent ? 10 : 9} className="px-6 py-4 text-center text-sm text-gray-500">
+                  <td colSpan={isTeamEvent ? 11 : 10} className="px-6 py-4 text-center text-sm text-gray-500">
                     No participants registered for this event yet.
                   </td>
                 </tr>

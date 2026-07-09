@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAuth, signOut } from "firebase/auth";
-import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { getFirestore, doc, getDoc, updateDoc } from "firebase/firestore";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faUser,
@@ -14,6 +14,8 @@ import {
   faMapPin,
   faSignOutAlt,
   faEdit,
+  faKey,
+  faShieldAlt,
 } from "@fortawesome/free-solid-svg-icons";
 
 const firestore = getFirestore();
@@ -32,6 +34,9 @@ const Profile: React.FC = () => {
     photoURL: "",
   });
   const [loading, setLoading] = useState(true);
+  const [authCode, setAuthCode] = useState<string | null>(null);
+  const [authCodeExpiry, setAuthCodeExpiry] = useState<Date | null>(null);
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -59,6 +64,14 @@ const Profile: React.FC = () => {
               email: user.email || "",
               photoURL: user.photoURL || "",
             });
+
+            if (userData.authCode && userData.authCodeExpiry) {
+              const expiryDate = userData.authCodeExpiry.toDate();
+              if (expiryDate > new Date()) {
+                setAuthCode(userData.authCode);
+                setAuthCodeExpiry(expiryDate);
+              }
+            }
           }
         }
       } catch (error) {
@@ -86,6 +99,59 @@ const Profile: React.FC = () => {
   const handleEditProfile = () => {
     navigate("/HomePage/Profile/EditProfile");
   };
+
+  const handleGenerateAuthCode = async () => {
+    if (window.confirm("Generating an authorization code will allow organizers to add or remove you from events on your behalf. This code will be valid for 5 minutes. Do you want to proceed?")) {
+      setIsGeneratingCode(true);
+      try {
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (user) {
+          const newCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
+          const expiryDate = new Date();
+          expiryDate.setMinutes(expiryDate.getMinutes() + 5);
+
+          const userDocRef = doc(firestore, "users", user.uid);
+          await updateDoc(userDocRef, {
+            authCode: newCode,
+            authCodeExpiry: expiryDate
+          });
+
+          setAuthCode(newCode);
+          setAuthCodeExpiry(expiryDate);
+        }
+      } catch (error) {
+        console.error("Error generating auth code: ", error);
+        alert("Failed to generate authorization code. Please try again.");
+      } finally {
+        setIsGeneratingCode(false);
+      }
+    }
+  };
+
+  // Timer for auth code expiry
+  const [timeLeft, setTimeLeft] = useState<string>("");
+  useEffect(() => {
+    if (!authCodeExpiry) return;
+    
+    const interval = setInterval(() => {
+      const now = new Date();
+      const diff = authCodeExpiry.getTime() - now.getTime();
+      
+      if (diff <= 0) {
+        setAuthCode(null);
+        setAuthCodeExpiry(null);
+        setTimeLeft("");
+        clearInterval(interval);
+      } else {
+        const m = Math.floor(diff / 1000 / 60);
+        const s = Math.floor((diff / 1000) % 60);
+        setTimeLeft(`${m}:${s.toString().padStart(2, '0')}`);
+      }
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [authCodeExpiry]);
 
   if (loading) {
     return (
@@ -159,6 +225,39 @@ const Profile: React.FC = () => {
                 <ProfileItem icon={faBook} label="Branch" value={userProfile.branch} />
                 <ProfileItem icon={faMapPin} label="Division" value={userProfile.division} />
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Organizer Authorization Section */}
+        <div className="p-4 sm:p-6 bg-yellow-50 border-t border-gray-200">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-yellow-800 flex items-center gap-2">
+                <FontAwesomeIcon icon={faShieldAlt} /> Organizer Authorization
+              </h3>
+              <p className="text-sm text-yellow-700 mt-1">
+                Provide an authorization code to event organizers if they need to manually add or remove you from their events.
+              </p>
+            </div>
+            
+            <div className="flex flex-col items-center sm:items-end min-w-[200px]">
+              {authCode ? (
+                <div className="text-center sm:text-right bg-white px-4 py-2 rounded-lg border-2 border-yellow-300 shadow-sm">
+                  <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Your Code</p>
+                  <p className="text-2xl font-mono font-bold text-[#246d8c] tracking-widest">{authCode}</p>
+                  <p className="text-xs font-medium text-red-500 mt-1">Expires in: {timeLeft}</p>
+                </div>
+              ) : (
+                <button
+                  onClick={handleGenerateAuthCode}
+                  disabled={isGeneratingCode}
+                  className="px-4 py-3 bg-yellow-500 hover:bg-yellow-600 text-white font-medium rounded-lg transition-colors flex items-center gap-2 shadow-sm whitespace-nowrap disabled:opacity-70"
+                >
+                  <FontAwesomeIcon icon={faKey} />
+                  {isGeneratingCode ? "Generating..." : "Generate Auth Code"}
+                </button>
+              )}
             </div>
           </div>
         </div>
