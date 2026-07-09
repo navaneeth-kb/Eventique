@@ -67,6 +67,7 @@ const EventDetails: React.FC = () => {
     year: 0
   });
   const [teamNameInput, setTeamNameInput] = useState<string>("");
+  const [intendedTeamSize, setIntendedTeamSize] = useState<number | ''>('');
   const [dietaryPreference, setDietaryPreference] = useState<"Veg" | "Non-Veg" | "">("");
 
   // Feedback States
@@ -366,6 +367,11 @@ const EventDetails: React.FC = () => {
       return;
     }
 
+    if (!intendedTeamSize || intendedTeamSize < (eventData.minTeamSize || 2) || intendedTeamSize > effectiveMaxTeamSize) {
+      setRegisterMessage(`Please enter a valid team size between ${eventData.minTeamSize || 2} and ${effectiveMaxTeamSize}.`);
+      return;
+    }
+
     try {
       const teamCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       const teamRef = doc(db, 'event', id, 'teams', teamCode);
@@ -374,6 +380,7 @@ const EventDetails: React.FC = () => {
         teamName: teamNameInput || `Team ${teamCode}`,
         leaderEmail: userEmail,
         members: [userEmail],
+        intendedSize: intendedTeamSize,
         status: 'forming',
         createdAt: new Date()
       };
@@ -410,8 +417,10 @@ const EventDetails: React.FC = () => {
       }
 
       const teamData = teamSnap.data();
-      if (teamData.members.length >= effectiveMaxTeamSize) {
-        setRegisterMessage(`Team is already full or event capacity reached. Maximum allowed is ${effectiveMaxTeamSize}.`);
+      const maxAllowed = teamData.intendedSize || effectiveMaxTeamSize;
+      
+      if (teamData.members.length >= maxAllowed) {
+        setRegisterMessage(`Team is already full. Maximum allowed for this team is ${maxAllowed}.`);
         return;
       }
       if (teamData.status !== 'forming') {
@@ -934,7 +943,7 @@ const EventDetails: React.FC = () => {
                         </div>
                         
                         <div className="mb-4">
-                          <h4 className="text-sm font-semibold text-gray-500 uppercase">Members ({userTeam.members.length}/{effectiveMaxTeamSize})</h4>
+                          <h4 className="text-sm font-semibold text-gray-500 uppercase">Members ({userTeam.members.length}/{userTeam.intendedSize || effectiveMaxTeamSize})</h4>
                           <ul className="mt-2 space-y-2">
                             {teamMembers.map((m, idx) => (
                               <li key={idx} className="flex items-center space-x-3 bg-gray-50 p-2 rounded">
@@ -952,9 +961,9 @@ const EventDetails: React.FC = () => {
                         
                         {userTeam.status === 'forming' && userTeam.leaderEmail === userEmail && (
                           <div className="mt-6 border-t pt-4">
-                            {userTeam.members.length < eventData.minTeamSize ? (
+                            {userTeam.members.length !== (userTeam.intendedSize || eventData.minTeamSize) ? (
                               <div className="text-amber-600 text-sm p-3 bg-amber-50 rounded">
-                                You need at least {eventData.minTeamSize} members to finalize registration. Share the team code for others to join!
+                                You need exactly {userTeam.intendedSize || eventData.minTeamSize} members to finalize registration. Currently have {userTeam.members.length}. Share the team code for others to join!
                               </div>
                             ) : (
                               <div>
@@ -1034,6 +1043,11 @@ const EventDetails: React.FC = () => {
                         <h3 className="text-lg font-bold mb-4">Create a Team</h3>
                         <input type="text" placeholder="Enter Team Name" value={teamNameInput} onChange={e => setTeamNameInput(e.target.value)} className="w-full h-12 px-4 mb-4 border rounded focus:ring-2 outline-none text-center font-medium" />
                         
+                        <div className="mb-4 text-left">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Expected Team Size ({eventData.minTeamSize || 2} - {effectiveMaxTeamSize}) *</label>
+                          <input type="number" min={eventData.minTeamSize || 2} max={effectiveMaxTeamSize} value={intendedTeamSize} onChange={e => setIntendedTeamSize(e.target.value ? parseInt(e.target.value) : '')} placeholder={`e.g. ${eventData.minTeamSize || 2}`} className="w-full h-12 px-4 border rounded focus:ring-2 outline-none bg-white" />
+                        </div>
+                        
                         {eventData.isFoodProvided && (
                           <div className="mb-4 text-left">
                             <label className="block text-sm font-medium text-gray-700 mb-2">Your Dietary Preference *</label>
@@ -1045,7 +1059,7 @@ const EventDetails: React.FC = () => {
                           </div>
                         )}
 
-                        <button onClick={handleRegisterAsLeader} disabled={!teamNameInput || (eventData.isFoodProvided && !dietaryPreference)} className="w-full bg-[#246d8c] text-white py-3 rounded-md font-medium mb-2 disabled:opacity-50">Confirm & Create Team</button>
+                        <button onClick={handleRegisterAsLeader} disabled={!teamNameInput || !intendedTeamSize || (eventData.isFoodProvided && !dietaryPreference)} className="w-full bg-[#246d8c] text-white py-3 rounded-md font-medium mb-2 disabled:opacity-50">Confirm & Create Team</button>
                         <button onClick={() => setCreateTeamMode(false)} className="w-full bg-gray-100 text-gray-700 py-2 rounded-md font-medium">Cancel</button>
                       </div>
                     ) : (
