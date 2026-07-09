@@ -47,6 +47,7 @@ const OrganiserEditEvent: React.FC = () => {
     event_end_time: "",
     autoCertificateGen: true,
     isHidden: false,
+    allowSingleRegistration: false,
   });
 
   useEffect(() => {
@@ -86,6 +87,7 @@ const OrganiserEditEvent: React.FC = () => {
             event_end_time: data.event_end_time || "",
             autoCertificateGen: data.autoCertificateGen !== undefined ? data.autoCertificateGen : true,
             isHidden: data.isHidden || false,
+            allowSingleRegistration: data.allowSingleRegistration || false,
           });
 
           setEnablePayment(data.paymentEnabled || false);
@@ -266,8 +268,9 @@ const OrganiserEditEvent: React.FC = () => {
         whatsappLinkEnabled: enableWhatsapp,
         whatsappLink: enableWhatsapp ? eventData.whatsappLink : "",
         isTeamEvent: eventData.isTeamEvent,
-        minTeamSize: eventData.isTeamEvent ? parseInt(eventData.minTeamSize as string) || 0 : 0,
+        minTeamSize: eventData.isTeamEvent ? parseInt(eventData.minTeamSize as string) || 2 : 0,
         maxTeamSize: eventData.isTeamEvent ? parseInt(eventData.maxTeamSize as string) || 0 : 0,
+        allowSingleRegistration: eventData.isTeamEvent ? eventData.allowSingleRegistration : false,
         isOvernight: eventData.isOvernight,
         isFoodProvided: eventData.isFoodProvided,
         isHidden: eventData.isHidden,
@@ -512,6 +515,30 @@ const OrganiserEditEvent: React.FC = () => {
               </div>
 
               {eventData.isTeamEvent && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-md font-medium text-gray-800">Hybrid Registration</div>
+                      <div className="text-sm text-gray-500 mt-1">Allow individual students to register without a team</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEventData({ ...eventData, allowSingleRegistration: !eventData.allowSingleRegistration })}
+                      className={`relative inline-flex items-center h-7 rounded-full w-12 transition-colors focus:outline-none ${
+                        eventData.allowSingleRegistration ? 'bg-[#246D8C]' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`${
+                          eventData.allowSingleRegistration ? 'translate-x-6' : 'translate-x-1'
+                        } inline-block w-5 h-5 transform bg-white rounded-full transition-transform shadow-sm`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {eventData.isTeamEvent && (
                 <div className="mt-5 pt-5 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Min Team Size</label>
@@ -519,7 +546,7 @@ const OrganiserEditEvent: React.FC = () => {
                       type="number"
                       name="minTeamSize"
                       placeholder="e.g. 2"
-                      min="1"
+                      min="2"
                       value={eventData.minTeamSize}
                       onChange={handleInputChange}
                       className="w-full h-12 px-4 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#246d8c] outline-none transition-all"

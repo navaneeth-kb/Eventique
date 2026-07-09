@@ -46,6 +46,7 @@ const EventDetails: React.FC = () => {
   const [createTeamMode, setCreateTeamMode] = useState(false);
   const [teamCodeInput, setTeamCodeInput] = useState("");
   const [teamMembers, setTeamMembers] = useState<any[]>([]); // To store detailed user profiles for team members
+  const [registerAsSingle, setRegisterAsSingle] = useState(false);
 
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [registerMessage, setRegisterMessage] = useState<string | null>(null);
@@ -298,7 +299,7 @@ const EventDetails: React.FC = () => {
   const uploadPaymentProof = async () => {
     if (!paymentScreenshot || !userEmail || !id || isEventClosed) return;
 
-    if (isTeamEvent && userTeam) {
+    if (isTeamEvent && userTeam && !registerAsSingle) {
       if (currentParticipantsCount + userTeam.members.length > maxParticipants) {
         setRegisterMessage('Sorry, this event does not have enough capacity for your entire team.');
         return;
@@ -325,7 +326,7 @@ const EventDetails: React.FC = () => {
         storagePath: fileName,
         timestamp: new Date()
       };
-      if (isTeamEvent && userTeam) {
+      if (isTeamEvent && userTeam && !registerAsSingle) {
         proofData.teamCode = userTeam.teamCode;
         
         // Also update team status
@@ -887,7 +888,7 @@ const EventDetails: React.FC = () => {
                 </div>
               )}
 
-              {isTeamEvent ? (
+              {isTeamEvent && !registerAsSingle ? (
                 (userTeam || (!isRegistered && !isPendingVerification && !isEventClosed && eventData.registrationOpen !== false && !isEventFull)) && (
                   <div className="space-y-4">
                     {!isRegistered && remainingSlots > 0 && remainingSlots <= 10 && (
@@ -1058,6 +1059,9 @@ const EventDetails: React.FC = () => {
                         <div className="flex flex-col sm:flex-row gap-4">
                           <button onClick={() => setCreateTeamMode(true)} className="flex-1 bg-[#246d8c] hover:bg-[#1a4f63] text-white py-4 rounded-xl font-bold shadow-md transition-all">Create a Team (Leader)</button>
                           <button onClick={() => setJoinTeamMode(true)} className="flex-1 bg-white border-2 border-[#246d8c] text-[#246d8c] hover:bg-blue-50 py-4 rounded-xl font-bold shadow-sm transition-all">Join a Team</button>
+                          {eventData.allowSingleRegistration && (
+                            <button onClick={() => setRegisterAsSingle(true)} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-xl font-bold shadow-md transition-all">Register Individually</button>
+                          )}
                         </div>
                       </div>
                     )}
@@ -1067,7 +1071,12 @@ const EventDetails: React.FC = () => {
                 !isEventClosed && eventData.registrationOpen !== false && !isEventFull ? (
                   eventData.paymentEnabled ? (
       <>
-        <h3 className="text-lg font-medium mb-3">Payment Information</h3>
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-lg font-medium">Payment Information</h3>
+          {isTeamEvent && registerAsSingle && (
+             <button onClick={() => setRegisterAsSingle(false)} className="text-sm text-blue-600 hover:underline">← Back to Team Options</button>
+          )}
+        </div>
         <p className="text-gray-700 mb-3">
           This event requires payment of ₹{eventData.price}
         </p>
@@ -1138,16 +1147,21 @@ const EventDetails: React.FC = () => {
       </>
     ) : (
       <>
-        {eventData.isFoodProvided && (
-          <div className="mb-4 text-left">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Your Dietary Preference *</label>
-            <select value={dietaryPreference} onChange={e => setDietaryPreference(e.target.value as any)} className="w-full h-12 px-4 border rounded focus:ring-2 outline-none bg-white">
-              <option value="">Select preference</option>
-              <option value="Veg">Vegetarian</option>
-              <option value="Non-Veg">Non-Vegetarian</option>
-            </select>
-          </div>
-        )}
+        <div className="flex justify-between items-center mb-4">
+          {eventData.isFoodProvided && (
+            <div className="text-left flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Your Dietary Preference *</label>
+              <select value={dietaryPreference} onChange={e => setDietaryPreference(e.target.value as any)} className="w-full h-12 px-4 border rounded focus:ring-2 outline-none bg-white">
+                <option value="">Select preference</option>
+                <option value="Veg">Vegetarian</option>
+                <option value="Non-Veg">Non-Vegetarian</option>
+              </select>
+            </div>
+          )}
+          {isTeamEvent && registerAsSingle && (
+             <button onClick={() => setRegisterAsSingle(false)} className="text-sm text-blue-600 hover:underline ml-4 whitespace-nowrap mt-4">← Back to Team Options</button>
+          )}
+        </div>
         <button
           className={`w-full py-3 rounded-md text-lg font-medium mb-4 text-white ${
             (eventData.isFoodProvided && !dietaryPreference) ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#246d8c]'
@@ -1166,7 +1180,7 @@ const EventDetails: React.FC = () => {
                 )
               ) : null}
               
-              {(!isTeamEvent || !userTeam) && !isRegistered && !isPendingVerification && (isEventClosed || eventData.registrationOpen === false || isEventFull) && (
+              {(!isTeamEvent || (!userTeam && !registerAsSingle)) && !isRegistered && !isPendingVerification && (isEventClosed || eventData.registrationOpen === false || isEventFull) && (
                 <div className="w-full bg-gray-400 text-white py-3 rounded-md text-lg font-medium mb-4 text-center cursor-not-allowed">
                   {isEventFull ? 'Registration Full' : 'Registration Closed'}
                 </div>
