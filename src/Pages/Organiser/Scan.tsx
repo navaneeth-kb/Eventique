@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { collection, getDocs, query, where, doc, updateDoc, arrayUnion, Timestamp } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, getDoc, updateDoc, arrayUnion, Timestamp } from "firebase/firestore";
 // @ts-ignore
 import { db } from "../../firebaseConfig"; // Adjust the path as needed
 import BarcodeScannerComponent from "react-qr-barcode-scanner"; // QR scanner
@@ -10,6 +10,7 @@ import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 const Scan: React.FC = () => {
   const navigate = useNavigate();
   const [data, setData] = useState<string>("");
+  const [uidInput, setUidInput] = useState<string>("");
   const [status, setStatus] = useState<string>("");
   const [organizerEmail, setOrganizerEmail] = useState<string | null>(null);
   const [scannedUser, setScannedUser] = useState<{ name: string; email: string; uid: string } | null>(null);
@@ -37,31 +38,45 @@ const Scan: React.FC = () => {
   const checkInDatabase = async (scannedData: string) => {
     try {
       const usersRef = collection(db, "users");
-      const userQuery = query(usersRef, where("email", "==", scannedData));
-      const userSnapshot = await getDocs(userQuery);
+      let userInfo: { name: string; email: string; uid: string } | null = null;
+      let targetEmail = scannedData;
 
-      if (userSnapshot.empty) {
+      if (scannedData.includes("@")) {
+        // Scanned data is an email
+        const userQuery = query(usersRef, where("email", "==", scannedData));
+        const userSnapshot = await getDocs(userQuery);
+
+        if (!userSnapshot.empty) {
+          userSnapshot.forEach((userDoc) => {
+            userInfo = {
+              name: userDoc.data().name || "Unknown",
+              email: userDoc.data().email,
+              uid: userDoc.id, // Firestore UID
+            };
+          });
+        }
+      } else {
+        // Scanned data is likely a UID
+        const userDocRef = doc(db, "users", scannedData);
+        const userDocSnap = await getDoc(userDocRef);
+        
+        if (userDocSnap.exists()) {
+          userInfo = {
+            name: userDocSnap.data().name || "Unknown",
+            email: userDocSnap.data().email,
+            uid: userDocSnap.id,
+          };
+          targetEmail = userInfo.email; // Use the fetched email to check against event participants
+        }
+      }
+
+      if (!userInfo) {
         setStatus("❌ User not found in database.");
         return;
       }
 
-      let userInfo: { name: string; email: string; uid: string } | null = null;
-
-      userSnapshot.forEach((userDoc) => {
-        userInfo = {
-          name: userDoc.data().name || "Unknown",
-          email: userDoc.data().email,
-          uid: userDoc.id, // Firestore UID
-        };
-      });
-
-      if (!userInfo) {
-        setStatus("❌ User data retrieval failed.");
-        return;
-      }
-
       const eventRef = collection(db, "event");
-      const eventQuery = query(eventRef, where("Participants", "array-contains", scannedData));
+      const eventQuery = query(eventRef, where("Participants", "array-contains", targetEmail));
       const eventSnapshot = await getDocs(eventQuery);
 
       if (eventSnapshot.empty) {
@@ -76,9 +91,9 @@ const Scan: React.FC = () => {
 
         // Check if the user is already in attendees
         const attendees = eventData.attendees || [];
-        if (attendees.some((att: { email: string }) => att.email === scannedData)) {
+        if (attendees.some((att: { email: string }) => att.email === targetEmail)) {
           // @ts-ignore
-          setStatus(`⚠️ ${userInfo.name} (${scannedData}) is already marked as attended.`);
+          setStatus(`⚠️ ${userInfo.name} (${targetEmail}) is already marked as attended.`);
           return;
         }
 
@@ -86,16 +101,16 @@ const Scan: React.FC = () => {
         const currentTime = Timestamp.now();
         await updateDoc(eventDocRef, {
           attendees: arrayUnion({
-            email: scannedData,
+            email: targetEmail,
             timestamp: currentTime,
           }),
         });
 
         setScannedUser(userInfo);
         // @ts-ignore
-        setStatus(`✅ ${userInfo.name} (${scannedData}) marked as attended! 🎉`);
+        setStatus(`✅ ${userInfo.name} (${targetEmail}) marked as attended! 🎉`);
 
-        console.log(`User ${scannedData} marked attended at ${currentTime.toDate()} in event ${eventId}`);
+        console.log(`User ${targetEmail} marked attended at ${currentTime.toDate()} in event ${eventId}`);
 
         // Reset scanned details after 3 seconds
         setTimeout(() => {
@@ -138,6 +153,29 @@ const Scan: React.FC = () => {
               }
             }}
           />
+        </div>
+
+        <div className="w-full mt-4 mb-6">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Or enter student UID manually"
+              className="flex-1 border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-[#246d8c] focus:border-[#246d8c]"
+              value={uidInput}
+              onChange={(e) => setUidInput(e.target.value)}
+            />
+            <button
+              onClick={() => {
+                if (uidInput.trim()) {
+                  checkInDatabase(uidInput.trim());
+                  setUidInput(""); // Clear after submission
+                }
+              }}
+              className="px-6 py-3 bg-[#246d8c] text-white font-semibold rounded-lg hover:bg-[#1a526b] transition-colors"
+            >
+              Check In
+            </button>
+          </div>
         </div>
 
         {scannedUser && (
