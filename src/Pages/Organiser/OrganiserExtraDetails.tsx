@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
-import { doc, getDoc, collection, query, where, getDocs, updateDoc, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc, arrayUnion, arrayRemove, deleteDoc, setDoc } from 'firebase/firestore';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 // @ts-ignore
@@ -29,6 +29,8 @@ const OrganiserExtraDetails = () => {
   const [eventName, setEventName] = useState('');
   const [isTeamEvent, setIsTeamEvent] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [maxParticipants, setMaxParticipants] = useState(Infinity);
+  const [minTeamSize, setMinTeamSize] = useState(2);
   const navigate = useNavigate();
 
   const triggerRefresh = () => setRefreshKey(prev => prev + 1);
@@ -47,6 +49,8 @@ const OrganiserExtraDetails = () => {
           
           const isTeam = eventData.isTeamEvent || false;
           setIsTeamEvent(isTeam);
+          setMaxParticipants(eventData.num_of_participants ? parseInt(eventData.num_of_participants.toString()) : Infinity);
+          setMinTeamSize(eventData.minTeamSize ? parseInt(eventData.minTeamSize.toString()) : 2);
           
           let emailToTeamMap: Record<string, {teamCode: string, teamName: string, intendedSize: number, members: string[]}> = {};
           let teamDetails: Record<string, {teamCode: string, teamName: string, intendedSize: number, members: string[], leaderEmail: string}> = {};
@@ -227,6 +231,86 @@ const OrganiserExtraDetails = () => {
     } catch (e) {
       console.error(e);
       alert("Error adding participant.");
+      setLoading(false);
+    }
+  };
+
+  const handleAddTeam = async () => {
+    if (participants.filter(p => !p.isEmptySlot).length >= maxParticipants) {
+      alert("Event is full. Cannot add more teams.");
+      return;
+    }
+
+    const teamName = prompt("Enter the new Team Name:");
+    if (!teamName) return;
+
+    const leaderCode = prompt("Enter the Team Leader's 6-digit authorization code:");
+    if (!leaderCode) return;
+
+    setLoading(true);
+    const leader = await verifyAuthCode(leaderCode);
+    if (!leader) {
+      alert("Invalid or expired authorization code for the Team Leader.");
+      setLoading(false);
+      return;
+    }
+
+    if (participants.some(p => p.email === leader.email)) {
+      alert("Team Leader is already registered for this event.");
+      setLoading(false);
+      return;
+    }
+
+    const newTeamCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const members = [leader.email];
+    
+    // Loop for adding more members
+    while (true) {
+      if (participants.filter(p => !p.isEmptySlot).length + members.length >= maxParticipants) {
+        alert("Reached maximum event capacity.");
+        break;
+      }
+
+      const memberCode = prompt(`Team so far: ${members.length} members.\nEnter the next member's 6-digit auth code (or leave blank to finish and create team):`);
+      if (!memberCode) break;
+
+      const member = await verifyAuthCode(memberCode);
+      if (!member) {
+        alert("Invalid or expired authorization code. Try again.");
+        continue;
+      }
+
+      if (participants.some(p => p.email === member.email) || members.includes(member.email)) {
+        alert("This student is already registered for this event or already in the current team.");
+        continue;
+      }
+
+      members.push(member.email);
+    }
+
+    try {
+      const teamRef = doc(db, 'event', id as string, 'teams', newTeamCode);
+      await setDoc(teamRef, {
+         teamCode: newTeamCode,
+         teamName: teamName,
+         intendedSize: Math.max(minTeamSize, members.length),
+         members: members,
+         leaderEmail: leader.email,
+         status: 'registered'
+      });
+
+      const eventRef = doc(db, 'event', id as string);
+      for (const m of members) {
+          await updateDoc(eventRef, {
+              Participants: arrayUnion(m)
+          });
+      }
+
+      alert(`Successfully created team ${teamName} with ${members.length} members!`);
+      triggerRefresh();
+    } catch (e) {
+      console.error(e);
+      alert("Error creating team.");
       setLoading(false);
     }
   };
@@ -449,14 +533,25 @@ const OrganiserExtraDetails = () => {
           </h1>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleAddParticipant}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-sm transition-colors"
-            title="Manually Add Participant"
-          >
-            <span className="font-bold">+</span>
-            <span className="hidden sm:inline">Add Participant</span>
-          </button>
+          {isTeamEvent ? (
+            <button
+              onClick={handleAddTeam}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-sm transition-colors"
+              title="Manually Add Team"
+            >
+              <span className="font-bold">+</span>
+              <span className="hidden sm:inline">Add New Team</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleAddParticipant}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-sm transition-colors"
+              title="Manually Add Participant"
+            >
+              <span className="font-bold">+</span>
+              <span className="hidden sm:inline">Add Participant</span>
+            </button>
+          )}
           <button
             onClick={downloadPDF}
             disabled={participants.filter(p => !p.isEmptySlot).length === 0}
