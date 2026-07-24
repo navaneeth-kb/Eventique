@@ -31,6 +31,7 @@ const OrganiserExtraDetails = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [maxParticipants, setMaxParticipants] = useState(Infinity);
   const [minTeamSize, setMinTeamSize] = useState(2);
+  const [allowSingle, setAllowSingle] = useState(false);
   const navigate = useNavigate();
 
   const triggerRefresh = () => setRefreshKey(prev => prev + 1);
@@ -51,6 +52,7 @@ const OrganiserExtraDetails = () => {
           setIsTeamEvent(isTeam);
           setMaxParticipants(eventData.num_of_participants ? parseInt(eventData.num_of_participants.toString()) : Infinity);
           setMinTeamSize(eventData.minTeamSize ? parseInt(eventData.minTeamSize.toString()) : 2);
+          setAllowSingle(eventData.allowSingleRegistration || false);
           
           let emailToTeamMap: Record<string, {teamCode: string, teamName: string, intendedSize: number, members: string[]}> = {};
           let teamDetails: Record<string, {teamCode: string, teamName: string, intendedSize: number, members: string[], leaderEmail: string}> = {};
@@ -433,7 +435,7 @@ const OrganiserExtraDetails = () => {
   };
 
   const downloadPDF = () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF('landscape');
     
     // Add event title
     doc.setFontSize(18);
@@ -447,61 +449,84 @@ const OrganiserExtraDetails = () => {
     // Add participant count
     doc.text(`Total Participants: ${participants.length}`, 14, 35);
     
-    const tableData = participants.filter(p => !p.isEmptySlot).map(participant => {
-      const row = [
-        participant.name,
-        participant.email,
-        participant.phoneNumber,
-        participant.uid,
-        participant.batch,
-        participant.branch,
-        participant.division,
-        participant.gender,
-        participant.year.toString()
-      ];
-      if (isTeamEvent) {
-        row.unshift(`${participant.teamName} (${participant.teamCode})`);
-      }
-      return row;
-    });
+    const baseHeaders = ['Name', 'Email', 'Phone', 'UID', 'Batch', 'Branch', 'Division', 'Gender', 'Year'];
     
-    let headers = [['Name', 'Email', 'Phone', 'UID', 'Batch', 'Branch', 'Division', 'Gender', 'Year']];
-    if (isTeamEvent) {
-      headers = [['Team', 'Name', 'Email', 'Phone', 'UID', 'Batch', 'Branch', 'Division', 'Gender', 'Year']];
-    }
+    const generateTableData = (data: Participant[], includeTeam: boolean) => {
+      let lastTeamName = "";
+      return data.map(participant => {
+        const row = [
+          participant.name,
+          participant.email,
+          participant.phoneNumber,
+          participant.uid,
+          participant.batch,
+          participant.branch,
+          participant.division,
+          participant.gender,
+          participant.year.toString()
+        ];
+        if (includeTeam) {
+          const currentTeamName = participant.teamName || "";
+          const teamDisplay = currentTeamName === lastTeamName ? "" : currentTeamName;
+          lastTeamName = currentTeamName;
+          row.unshift(teamDisplay);
+        }
+        return row;
+      });
+    };
 
-    
-    // Add table using autoTable plugin
-    autoTable(doc, {
-      head: headers,
-      body: tableData,
-      startY: 40,
-      styles: {
-        fontSize: 8,
-        cellPadding: 2,
-        overflow: 'linebreak'
-      },
-      headStyles: {
-        fillColor: [41, 128, 185],
-        textColor: 255,
-        fontStyle: 'bold'
-      },
-      alternateRowStyles: {
-        fillColor: [245, 245, 245]
-      },
-      columnStyles: {
-        0: { cellWidth: 25 }, // Name
-        1: { cellWidth: 30 }, // Email
-        2: { cellWidth: 20 }, // Phone
-        3: { cellWidth: 15 }, // UID
-        4: { cellWidth: 15 }, // Batch
-        5: { cellWidth: 15 }, // Branch
-        6: { cellWidth: 15 }, // Division
-        7: { cellWidth: 15 }, // Gender
-        8: { cellWidth: 10 }, // Year
-      },
-      margin: { top: 40 }
-    });
+    let startY = 40;
+
+    if (isTeamEvent) {
+      const teamParticipants = participants.filter(p => !p.isEmptySlot && p.teamCode && p.teamCode !== 'N/A');
+      const indParticipants = participants.filter(p => !p.isEmptySlot && (!p.teamCode || p.teamCode === 'N/A'));
+
+      if (teamParticipants.length > 0) {
+        doc.setFontSize(14);
+        doc.text("Team Participants", 14, startY);
+        startY += 5;
+        
+        autoTable(doc, {
+          head: [['Team', ...baseHeaders]],
+          body: generateTableData(teamParticipants, true),
+          startY: startY,
+          styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+          headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          margin: { top: 40 }
+        });
+        
+        // @ts-ignore
+        startY = doc.lastAutoTable.finalY + 15;
+      }
+
+      if (indParticipants.length > 0) {
+        doc.setFontSize(14);
+        doc.text("Individual Participants", 14, startY);
+        startY += 5;
+
+        autoTable(doc, {
+          head: [baseHeaders],
+          body: generateTableData(indParticipants, false),
+          startY: startY,
+          styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+          headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          margin: { top: 40 }
+        });
+      }
+    } else {
+      const activeParticipants = participants.filter(p => !p.isEmptySlot);
+      autoTable(doc, {
+        head: [baseHeaders],
+        body: generateTableData(activeParticipants, false),
+        startY: startY,
+        styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        margin: { top: 40 }
+      });
+    }
     
     // Save the PDF
     doc.save(`${eventName.replace(/[^a-z0-9]/gi, '_')}_participants.pdf`);
@@ -515,62 +540,15 @@ const OrganiserExtraDetails = () => {
     );
   }
 
-  return (
-    <div className="w-full max-w-6xl mx-auto p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center">
-          <button 
-            onClick={() => navigate(-1)}
-            className="mr-4 p-2 rounded-full hover:bg-gray-100"
-            aria-label="Go back to previous page"
-            title="Go back"
-          >
-            <ArrowLeftIcon className="h-5 w-5 text-gray-600" aria-hidden="true" />
-            <span className="sr-only">Go back</span>
-          </button>
-          <h1 className="text-2xl font-bold text-gray-800">
-            {eventName} - Participant Details ({participants.length})
-          </h1>
-        </div>
-        <div className="flex items-center gap-3">
-          {isTeamEvent ? (
-            <button
-              onClick={handleAddTeam}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-sm transition-colors"
-              title="Manually Add Team"
-            >
-              <span className="font-bold">+</span>
-              <span className="hidden sm:inline">Add New Team</span>
-            </button>
-          ) : (
-            <button
-              onClick={handleAddParticipant}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-sm transition-colors"
-              title="Manually Add Participant"
-            >
-              <span className="font-bold">+</span>
-              <span className="hidden sm:inline">Add Participant</span>
-            </button>
-          )}
-          <button
-            onClick={downloadPDF}
-            disabled={participants.filter(p => !p.isEmptySlot).length === 0}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg ${participants.filter(p => !p.isEmptySlot).length === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
-            aria-label="Export participant list to PDF"
-            title="Export PDF"
-          >
-            <ArrowDownTrayIcon className="h-5 w-5" aria-hidden="true" />
-            <span className="hidden sm:inline">Export PDF</span>
-          </button>
-        </div>
-      </div>
-
+  const renderTable = (title: string, data: Participant[], showTeamColumn: boolean) => (
+    <div className="mb-8">
+      <h3 className="text-xl font-bold text-gray-700 mb-4">{title}</h3>
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                {isTeamEvent && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Team</th>}
+                {showTeamColumn && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Team</th>}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
@@ -584,36 +562,34 @@ const OrganiserExtraDetails = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {participants.length > 0 ? (
-                participants.map((participant, index) => {
+              {data.length > 0 ? (
+                data.map((participant, index) => {
                   let isFirstInTeam = false;
                   let teamMembersCount = 0;
                   
-                  if (isTeamEvent) {
-                    const prevParticipant = index > 0 ? participants[index - 1] : null;
+                  if (showTeamColumn) {
+                    const prevParticipant = index > 0 ? data[index - 1] : null;
                     if (!prevParticipant || prevParticipant.teamCode !== participant.teamCode) {
                       isFirstInTeam = true;
-                      teamMembersCount = participants.filter(p => p.teamCode === participant.teamCode).length;
+                      teamMembersCount = data.filter(p => p.teamCode === participant.teamCode).length;
                     }
                   }
 
                   return (
                     <tr key={index} className={`border-b border-gray-100 ${participant.isEmptySlot ? 'bg-gray-50/50' : 'hover:bg-gray-50'}`}>
-                      {isTeamEvent && isFirstInTeam && (
+                      {showTeamColumn && isFirstInTeam && (
                         <td rowSpan={teamMembersCount} className="px-6 py-4 whitespace-nowrap align-top border-r border-gray-200 bg-blue-50/30">
                           <div className="flex flex-col justify-between h-full min-h-[40px]">
                             <div>
                               <div className="font-bold text-[#246d8c]">{participant.teamName}</div>
                               <div className="text-xs text-gray-500 mt-1 font-mono">{participant.teamCode}</div>
                             </div>
-                            {participant.teamCode && participant.teamCode !== 'N/A' && (
-                              <button 
-                                onClick={() => handleDeleteTeam(participant.teamCode as string)} 
-                                className="text-red-500 hover:text-red-700 text-xs font-semibold mt-2 text-left transition-colors"
-                              >
-                                Delete Team
-                              </button>
-                            )}
+                            <button 
+                              onClick={() => handleDeleteTeam(participant.teamCode as string)} 
+                              className="text-red-500 hover:text-red-700 text-xs font-semibold mt-2 text-left transition-colors"
+                            >
+                              Delete Team
+                            </button>
                           </div>
                         </td>
                       )}
@@ -655,8 +631,8 @@ const OrganiserExtraDetails = () => {
                 })
               ) : (
                 <tr>
-                  <td colSpan={isTeamEvent ? 11 : 10} className="px-6 py-4 text-center text-sm text-gray-500">
-                    No participants registered for this event yet.
+                  <td colSpan={showTeamColumn ? 11 : 10} className="px-6 py-4 text-center text-sm text-gray-500">
+                    No participants registered in this category yet.
                   </td>
                 </tr>
               )}
@@ -664,6 +640,68 @@ const OrganiserExtraDetails = () => {
           </table>
         </div>
       </div>
+    </div>
+  );
+
+  return (
+    <div className="w-full max-w-6xl mx-auto p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center">
+          <button 
+            onClick={() => navigate(-1)}
+            className="mr-4 p-2 rounded-full hover:bg-gray-100"
+            aria-label="Go back to previous page"
+            title="Go back"
+          >
+            <ArrowLeftIcon className="h-5 w-5 text-gray-600" aria-hidden="true" />
+            <span className="sr-only">Go back</span>
+          </button>
+          <h1 className="text-2xl font-bold text-gray-800">
+            {eventName} - Participant Details ({participants.length})
+          </h1>
+        </div>
+        <div className="flex items-center gap-3">
+          {isTeamEvent && (
+            <button
+              onClick={handleAddTeam}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-sm transition-colors"
+              title="Manually Add Team"
+            >
+              <span className="font-bold">+</span>
+              <span className="hidden sm:inline">Add New Team</span>
+            </button>
+          )}
+          {(!isTeamEvent || allowSingle) && (
+            <button
+              onClick={handleAddParticipant}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-colors"
+              title="Manually Add Individual Participant"
+            >
+              <span className="font-bold">+</span>
+              <span className="hidden sm:inline">Add Individual</span>
+            </button>
+          )}
+          <button
+            onClick={downloadPDF}
+            disabled={participants.filter(p => !p.isEmptySlot).length === 0}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg ${participants.filter(p => !p.isEmptySlot).length === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+            aria-label="Export participant list to PDF"
+            title="Export PDF"
+          >
+            <ArrowDownTrayIcon className="h-5 w-5" aria-hidden="true" />
+            <span className="hidden sm:inline">Export PDF</span>
+          </button>
+        </div>
+      </div>
+
+      {isTeamEvent ? (
+        <>
+          {renderTable("Team Participants", participants.filter(p => p.teamCode && p.teamCode !== 'N/A'), true)}
+          {renderTable("Individual Participants", participants.filter(p => !p.teamCode || p.teamCode === 'N/A'), false)}
+        </>
+      ) : (
+        renderTable("All Participants", participants, false)
+      )}
     </div>
   );
 };
