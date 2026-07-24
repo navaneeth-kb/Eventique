@@ -135,7 +135,7 @@ const OrganiserAttendanceDetails = () => {
   }, [id]);
 
   const downloadPDF = () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF('landscape');
     
     // Add event title
     doc.setFontSize(18);
@@ -149,63 +149,80 @@ const OrganiserAttendanceDetails = () => {
     // Add attendee count
     doc.text(`Total Attendees: ${participants.length}`, 14, 35);
     
-    // Prepare data for the table
-    
-    const tableData = participants.map(participant => {
-      const row = [
-        participant.name,
-        participant.email,
-        participant.phoneNumber,
-        participant.uid,
-        participant.batch,
-        participant.branch,
-        participant.division,
-        participant.gender,
-        participant.year.toString()
-      ];
-      if (isTeamEvent) {
-        row.unshift(`${participant.teamName} (${participant.teamCode})`);
-      }
-      return row;
-    });
-    
-    let headers = [['Name', 'Email', 'Phone', 'UID', 'Batch', 'Branch', 'Division', 'Gender', 'Year']];
-    if (isTeamEvent) {
-      headers = [['Team', 'Name', 'Email', 'Phone', 'UID', 'Batch', 'Branch', 'Division', 'Gender', 'Year']];
-    }
+    const baseHeaders = ['Name', 'Email', 'Phone', 'UID', 'Batch', 'Branch', 'Division', 'Gender', 'Year'];
 
-    
-    // Add table using autoTable plugin
-    autoTable(doc, {
-      head: headers,
-      body: tableData,
-      startY: 40,
-      styles: {
-        fontSize: 8,
-        cellPadding: 2,
-        overflow: 'linebreak'
-      },
-      headStyles: {
-        fillColor: [41, 128, 185],
-        textColor: 255,
-        fontStyle: 'bold'
-      },
-      alternateRowStyles: {
-        fillColor: [245, 245, 245]
-      },
-      columnStyles: {
-        0: { cellWidth: 25 }, // Name
-        1: { cellWidth: 30 }, // Email
-        2: { cellWidth: 20 }, // Phone
-        3: { cellWidth: 15 }, // UID
-        4: { cellWidth: 15 }, // Batch
-        5: { cellWidth: 15 }, // Branch
-        6: { cellWidth: 15 }, // Division
-        7: { cellWidth: 15 }, // Gender
-        8: { cellWidth: 10 }, // Year
-      },
-      margin: { top: 40 }
-    });
+    const generateTableData = (data: Participant[], includeTeam: boolean) => {
+      let lastTeamName = "";
+      return data.map(participant => {
+        const row = [
+          participant.name,
+          participant.email,
+          participant.phoneNumber,
+          participant.uid,
+          participant.batch,
+          participant.branch,
+          participant.division,
+          participant.gender,
+          participant.year.toString()
+        ];
+        if (includeTeam) {
+          const currentTeamName = participant.teamName || "";
+          const teamDisplay = currentTeamName === lastTeamName ? "" : currentTeamName;
+          lastTeamName = currentTeamName;
+          row.unshift(teamDisplay);
+        }
+        return row;
+      });
+    };
+
+    let startY = 40;
+
+    if (isTeamEvent) {
+      const teamParticipants = participants.filter(p => p.teamCode && p.teamCode !== 'N/A');
+      const indParticipants = participants.filter(p => !p.teamCode || p.teamCode === 'N/A');
+
+      if (teamParticipants.length > 0) {
+        doc.setFontSize(14);
+        doc.text("Team Attendees", 14, startY);
+        startY += 5;
+        autoTable(doc, {
+          head: [['Team', ...baseHeaders]],
+          body: generateTableData(teamParticipants, true),
+          startY: startY,
+          styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+          headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          margin: { top: 40 }
+        });
+        // @ts-ignore
+        startY = doc.lastAutoTable.finalY + 15;
+      }
+
+      if (indParticipants.length > 0) {
+        doc.setFontSize(14);
+        doc.text("Individual Attendees", 14, startY);
+        startY += 5;
+        autoTable(doc, {
+          head: [baseHeaders],
+          body: generateTableData(indParticipants, false),
+          startY: startY,
+          styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+          headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          margin: { top: 40 }
+        });
+      }
+    } else {
+      autoTable(doc, {
+        head: [baseHeaders],
+        body: generateTableData(participants, false),
+        startY: startY,
+        styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        margin: { top: 40 }
+      });
+    }
     
     doc.save(`${eventName.replace(/[^a-z0-9]/gi, '_')}_attendance.pdf`);
   };
@@ -217,6 +234,71 @@ const OrganiserAttendanceDetails = () => {
       </div>
     );
   }
+
+  const renderTable = (title: string, data: Participant[], showTeamColumn: boolean) => (
+    <div className="mb-8">
+      <h3 className="text-xl font-bold text-gray-700 mb-4">{title}</h3>
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                {showTeamColumn && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Team</th>}
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Division</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {data.length > 0 ? (
+                data.map((participant, index) => {
+                  let isFirstInTeam = false;
+                  let teamMembersCount = 0;
+                  if (showTeamColumn) {
+                    const prev = index > 0 ? data[index - 1] : null;
+                    if (!prev || prev.teamCode !== participant.teamCode) {
+                      isFirstInTeam = true;
+                      teamMembersCount = data.filter(p => p.teamCode === participant.teamCode).length;
+                    }
+                  }
+                  return (
+                    <tr key={index} className="hover:bg-gray-50 border-b border-gray-100">
+                      {showTeamColumn && isFirstInTeam && (
+                        <td rowSpan={teamMembersCount} className="px-6 py-4 whitespace-nowrap align-top border-r border-gray-200 bg-blue-50/30">
+                          <div className="font-bold text-[#246d8c]">{participant.teamName}</div>
+                        </td>
+                      )}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{participant.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.email}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.phoneNumber}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.uid}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.batch}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.branch}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.division}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.gender}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.year}</td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={showTeamColumn ? 10 : 9} className="px-6 py-4 text-center text-sm text-gray-500">
+                    No attendees in this category yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="w-full max-w-6xl mx-auto p-4">
@@ -247,68 +329,14 @@ const OrganiserAttendanceDetails = () => {
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                {isTeamEvent && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">Team</th>}
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Division</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {participants.length > 0 ? (
-                participants.map((participant, index) => {
-                  let isFirstInTeam = false;
-                  let teamMembersCount = 0;
-                  
-                  if (isTeamEvent) {
-                    const prevParticipant = index > 0 ? participants[index - 1] : null;
-                    if (!prevParticipant || prevParticipant.teamCode !== participant.teamCode) {
-                      isFirstInTeam = true;
-                      teamMembersCount = participants.filter(p => p.teamCode === participant.teamCode).length;
-                    }
-                  }
-
-                  return (
-                    <tr key={index} className="hover:bg-gray-50 border-b border-gray-100">
-                      {isTeamEvent && isFirstInTeam && (
-                        <td rowSpan={teamMembersCount} className="px-6 py-4 whitespace-nowrap align-top border-r border-gray-200 bg-blue-50/30">
-                          <div className="font-bold text-[#246d8c]">{participant.teamName}</div>
-                          <div className="text-xs text-gray-500 mt-1 font-mono">{participant.teamCode}</div>
-                        </td>
-                      )}
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{participant.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.email}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.phoneNumber}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.uid}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.batch}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.branch}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.division}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.gender}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{participant.year}</td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={isTeamEvent ? 10 : 9} className="px-6 py-4 text-center text-sm text-gray-500">
-                    No attendees recorded for this event yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {isTeamEvent ? (
+        <>
+          {renderTable("Team Attendees", participants.filter(p => p.teamCode && p.teamCode !== 'N/A'), true)}
+          {renderTable("Individual Attendees", participants.filter(p => !p.teamCode || p.teamCode === 'N/A'), false)}
+        </>
+      ) : (
+        renderTable("All Attendees", participants, false)
+      )}
     </div>
   );
 };
