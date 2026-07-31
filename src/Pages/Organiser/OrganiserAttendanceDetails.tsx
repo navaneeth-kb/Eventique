@@ -50,10 +50,12 @@ const OrganiserAttendanceDetails = () => {
             const teamSnaps = await getDocs(teamsRef);
             teamSnaps.forEach(doc => {
               const td = doc.data();
-              if (td.members) {
-                 td.members.forEach((m: string) => {
-                   emailToTeamMap[m] = { teamCode: td.teamCode, teamName: td.teamName || `Team ${td.teamCode}` };
-                 });
+              if (td.status !== 'forming') {
+                if (td.members) {
+                   td.members.forEach((m: string) => {
+                     emailToTeamMap[m] = { teamCode: td.teamCode, teamName: td.teamName || `Team ${td.teamCode}` };
+                   });
+                }
               }
             });
           }

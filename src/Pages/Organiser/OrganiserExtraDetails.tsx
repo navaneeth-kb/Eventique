@@ -62,17 +62,19 @@ const OrganiserExtraDetails = () => {
             const teamSnaps = await getDocs(teamsRef);
             teamSnaps.forEach(doc => {
               const td = doc.data();
-              teamDetails[td.teamCode] = {
-                 teamCode: td.teamCode,
-                 teamName: td.teamName || `Team ${td.teamCode}`,
-                 intendedSize: td.intendedSize || 2,
-                 members: td.members || [],
-                 leaderEmail: td.leaderEmail
-              };
-              if (td.members) {
-                 td.members.forEach((m: string) => {
-                   emailToTeamMap[m] = { teamCode: td.teamCode, teamName: td.teamName || `Team ${td.teamCode}`, intendedSize: td.intendedSize || 2, members: td.members || [] };
-                 });
+              if (td.status !== 'forming') {
+                teamDetails[td.teamCode] = {
+                   teamCode: td.teamCode,
+                   teamName: td.teamName || `Team ${td.teamCode}`,
+                   intendedSize: td.intendedSize || 2,
+                   members: td.members || [],
+                   leaderEmail: td.leaderEmail
+                };
+                if (td.members) {
+                   td.members.forEach((m: string) => {
+                     emailToTeamMap[m] = { teamCode: td.teamCode, teamName: td.teamName || `Team ${td.teamCode}`, intendedSize: td.intendedSize || 2, members: td.members || [] };
+                   });
+                }
               }
             });
           }
